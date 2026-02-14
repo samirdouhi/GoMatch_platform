@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: pfa-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD}
+      MSSQL_PID: ${MSSQL_PID}
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+
+  authservice:
+    build:
+      context: ./Services/Auth/AuthService
+    container_name: pfa-auth
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__AuthDb: "Server=sqlserver,1433;Database=AuthDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
+    depends_on:
+      - sqlserver
+    ports:
+      - "5001:8080"
+
+  gateway:
+    build:
+      context: ./Gateway/ApiGateway
+    container_name: pfa-gateway
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+    depends_on:
+      - authservice
+    ports:
+      - "8080:8080"
+
+volumes:
+  sql_data:

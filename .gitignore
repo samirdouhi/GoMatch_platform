@@ -1,0 +1,18 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# .NET build outputs
+**/bin/
+**/obj/
+
+# Logs
+*.log
+
+# Secrets / local env
+.env
+
+# OS junk
+.DS_Store
+Thumbs.db
