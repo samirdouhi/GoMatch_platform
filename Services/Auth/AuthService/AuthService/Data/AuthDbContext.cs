@@ -1,4 +1,5 @@
-﻿using AuthService.Models;
+﻿using AuthService.Enums;
+using AuthService.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace AuthService.Data
@@ -10,18 +11,31 @@ namespace AuthService.Data
         {
         }
 
-        // ✅ le TYPE = User (singulier)
-        // ✅ le NOM de la propriété peut être Users (pluriel)
+      
         public DbSet<User> Users { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<User>(e =>
+            {
+                e.HasIndex(u => u.Email).IsUnique();
 
-            // ✅ le TYPE = User (singulier)
-            modelBuilder.Entity<User>()
-                .HasIndex(u => u.Email)
-                .IsUnique();
+                e.Property(u => u.Email)
+                    .HasMaxLength(256)
+                    .IsRequired();
+
+                e.Property(u => u.Role)
+                    .HasConversion<string>()              // ✅ enum stocké en string
+                    .HasMaxLength(30)
+                    .HasDefaultValue(UserRole.Touriste)   // ✅ défaut côté DB
+                    .IsRequired();
+
+                // ✅ sécurité DB : interdit toute valeur hors liste
+                e.ToTable(t => t.HasCheckConstraint(
+                    "CK_Users_Role_Allowed",
+                    "[Role] IN ('Touriste','Commercant','Admin')"
+                ));
+            });
         }
     }
 }

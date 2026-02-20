@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using AuthService.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace AuthService.Models
 {
@@ -13,7 +14,7 @@ namespace AuthService.Models
         public string PasswordHash { get; set;}= default!;
 
         [Required, MaxLength(30)]
-        public string Role { get; set; } = "Touriste"; // Touriste | Commerçant | Admin
+        public UserRole Role { get; set; } = UserRole.Touriste;
 
         public bool IsActive { get; set; } = true;
 
