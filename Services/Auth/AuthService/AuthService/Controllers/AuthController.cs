@@ -1,5 +1,6 @@
 ﻿using AuthService.DTOs;
 using AuthService.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AuthService.Controllers;
@@ -33,4 +34,27 @@ public sealed class AuthController : ControllerBase
         // ✅ 201 : réponse sécurisée
         return StatusCode(201, data);
     }
+    // POST /auth/login
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginRequestDto dto, CancellationToken ct)
+    {
+        var (success, code, erreur, data) = await _service.LoginAsync(dto, ct);
+
+        if (!success)
+            return StatusCode(code, new { message = erreur });
+
+        // ✅ 200 OK + token
+        return Ok(data);
+    }
+    [Authorize]
+    [HttpGet("me")]
+    public IActionResult Me()
+    {
+        return Ok(User.Claims.Select(c => new
+        {
+            c.Type,
+            c.Value
+        }));
+    }
+
 }
