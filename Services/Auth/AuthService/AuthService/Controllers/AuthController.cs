@@ -46,6 +46,20 @@ public sealed class AuthController : ControllerBase
         // ✅ 200 OK + token
         return Ok(data);
     }
+
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout(
+    [FromBody] RefreshRequestDto dto,
+    CancellationToken ct)
+    {
+        var (success, code, erreur) =
+            await _service.LogoutAsync(dto.RefreshToken, ct);
+
+        if (!success)
+            return StatusCode(code, new { erreur });
+
+        return Ok(new { message = "Déconnexion réussie." });
+    }
     [Authorize]
     [HttpGet("me")]
     public IActionResult Me()
@@ -56,5 +70,19 @@ public sealed class AuthController : ControllerBase
             c.Value
         }));
     }
-
+    [Authorize(Roles = "Admin")]
+    [HttpGet("admin-test")]
+    public IActionResult AdminTest()
+    {
+        return Ok("Admin OK");
+    }
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequestDto dto, CancellationToken ct)
+    {
+        var (success, code, erreur, data) = await _service.RefreshAsync(dto, ct);
+        if (!success) return StatusCode(code, new { erreur });
+        return Ok(data);
+    }
+    [HttpGet("boom")]
+    public IActionResult Boom() => throw new Exception("BOOM TEST");
 }

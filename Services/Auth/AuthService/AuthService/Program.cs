@@ -1,5 +1,6 @@
 using AuthService.Configuration;
 using AuthService.Data;
+using AuthService.Mappers;
 using AuthService.Repositories;
 using AuthService.Security;
 using AuthService.Services;
@@ -8,17 +9,36 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using System.Text;
+using AuthService.ErrorHandling;
+using AuthService.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+
+// ? OpenAPI natif (.NET 9) — compatible Scalar
 builder.Services.AddOpenApi();
 
-// --- DI existant
+// ? CORS (Front Next.js en dev)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontDev", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:3000")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+// --- DI
 builder.Services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
 builder.Services.AddSingleton<PasswordPolicy>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuthService, AuthentificationService>();
+builder.Services.AddScoped<IAuthMapper, AuthMapper>();
+builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+builder.Services.AddSingleton<IExceptionMapper, ExceptionMapper>();
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -30,7 +50,8 @@ builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddSingleton<IJwtService, JwtService>();
 
 // --- JWT authentication (validation token)
-var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()!;
+var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()
+          ?? throw new InvalidOperationException("Missing Jwt configuration section.");
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -45,23 +66,33 @@ builder.Services
 
             ValidIssuer = jwt.Issuer,
             ValidAudience = jwt.Audience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
+
+            ClockSkew = TimeSpan.Zero
         };
     });
 
+// ? Authorization (roles / policies)
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
+app.UseMiddleware<GlobalExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
+    // OpenAPI + Scalar
     app.MapOpenApi();
     app.MapScalarApiReference();
 }
 
+
 app.UseHttpsRedirection();
 
-// ?? IMPORTANT : Authentication AVANT Authorization
+// ? Ordre important
+app.UseCors("FrontDev");
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
 app.Run();
