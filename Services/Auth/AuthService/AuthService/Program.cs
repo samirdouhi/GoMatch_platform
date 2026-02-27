@@ -76,9 +76,14 @@ builder.Services
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>(); // <-- adapte le nom
+    db.Database.Migrate();
+}
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 {
     // OpenAPI + Scalar
     app.MapOpenApi();

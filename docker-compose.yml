@@ -6,37 +6,41 @@ services:
     container_name: pfa-sqlserver
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${SA_PASSWORD}
-      MSSQL_PID: ${MSSQL_PID}
+      MSSQL_SA_PASSWORD: "${SA_PASSWORD}"
+      MSSQL_PID: "${MSSQL_PID}"
     ports:
       - "1433:1433"
     volumes:
       - sql_data:/var/opt/mssql
+    networks:
+      - pfa-network
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -Q \"SELECT 1\" -C || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
 
   authservice:
     build:
-      context: ./Services/Auth/AuthService
+      context: ./Services/Auth/AuthService/AuthService
+      dockerfile: Dockerfile
     container_name: pfa-auth
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__AuthDb: "Server=sqlserver,1433;Database=AuthDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
     depends_on:
-      - sqlserver
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=GoMatchAuthDb;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
+      Jwt__Key: "${JWT_KEY}"
     ports:
       - "5001:8080"
-
-  gateway:
-    build:
-      context: ./Gateway/ApiGateway
-    container_name: pfa-gateway
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: http://+:8080
-    depends_on:
-      - authservice
-    ports:
-      - "8080:8080"
+    networks:
+      - pfa-network
 
 volumes:
   sql_data:
+
+networks:
+  pfa-network:
