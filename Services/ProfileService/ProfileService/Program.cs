@@ -7,6 +7,9 @@ using ProfileService.Mappers.Commercant;
 using ProfileService.Mappers.Touriste;
 using Scalar.AspNetCore;
 using System.Text;
+using ProfileService.Repositories.Admin;
+using ProfileService.Repositories.Commercant;
+using ProfileService.Repositories.Touriste;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,6 +63,9 @@ builder.Services.AddDbContext<ProfileDbContext>(options =>
 builder.Services.AddScoped<ITouristeProfileMapper, TouristeProfileMapper>();
 builder.Services.AddScoped<ICommercantProfileMapper, CommercantProfileMapper>();
 builder.Services.AddScoped<IAdminProfileMapper, AdminProfileMapper>();
+builder.Services.AddScoped<ITouristeProfileRepository, TouristeProfileRepository>();
+builder.Services.AddScoped<ICommercantProfileRepository, CommercantProfileRepository>();
+builder.Services.AddScoped<IAdminProfileRepository, AdminProfileRepository>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))

@@ -28,7 +28,6 @@
     <Folder Include="Middleware\" />
     <Folder Include="Services\" />
     <Folder Include="Security\" />
-    <Folder Include="Repositories\" />
   </ItemGroup>
 
 </Project>
