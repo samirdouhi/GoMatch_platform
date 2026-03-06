@@ -1,9 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using ProfileService.Data;
+using ProfileService.Mappers.Admin;
+using ProfileService.Mappers.Commercant;
+using ProfileService.Mappers.Touriste;
 using Scalar.AspNetCore;
 using System.Text;
-using Microsoft.EntityFrameworkCore;
-using ProfileService.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,6 +56,10 @@ builder.Services.AddAuthorization();
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 builder.Services.AddDbContext<ProfileDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddScoped<ITouristeProfileMapper, TouristeProfileMapper>();
+builder.Services.AddScoped<ICommercantProfileMapper, CommercantProfileMapper>();
+builder.Services.AddScoped<IAdminProfileMapper, AdminProfileMapper>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
