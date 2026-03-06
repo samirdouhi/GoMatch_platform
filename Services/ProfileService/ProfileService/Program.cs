@@ -10,6 +10,11 @@ using System.Text;
 using ProfileService.Repositories.Admin;
 using ProfileService.Repositories.Commercant;
 using ProfileService.Repositories.Touriste;
+using ProfileService.Services.Admin;
+using ProfileService.Services.Commercant;
+using ProfileService.Services.Touriste;
+using ProfileService.ErrorHandling.ExceptionMapping;
+using ProfileService.ErrorHandling.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,6 +71,11 @@ builder.Services.AddScoped<IAdminProfileMapper, AdminProfileMapper>();
 builder.Services.AddScoped<ITouristeProfileRepository, TouristeProfileRepository>();
 builder.Services.AddScoped<ICommercantProfileRepository, CommercantProfileRepository>();
 builder.Services.AddScoped<IAdminProfileRepository, AdminProfileRepository>();
+builder.Services.AddScoped<ITouristeProfileService, TouristeProfileService>();
+builder.Services.AddScoped<ICommercantProfileService, CommercantProfileService>();
+builder.Services.AddScoped<IAdminProfileService, AdminProfileService>();
+builder.Services.AddScoped<IExceptionMapper, ExceptionMapper>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
@@ -78,5 +88,6 @@ app.UseHttpsRedirection();
 app.UseCors("FrontDev");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<GlobalExceptionMiddleware>();
 app.MapControllers();
 app.Run();
