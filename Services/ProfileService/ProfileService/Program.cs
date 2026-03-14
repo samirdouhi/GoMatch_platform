@@ -2,24 +2,36 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ProfileService.Data;
+using ProfileService.ErrorHandling.ExceptionMapping;
+using ProfileService.ErrorHandling.Middleware;
+using ProfileService.Logging;
 using ProfileService.Mappers.Admin;
 using ProfileService.Mappers.Commercant;
 using ProfileService.Mappers.Touriste;
-using Scalar.AspNetCore;
-using System.Text;
 using ProfileService.Repositories.Admin;
 using ProfileService.Repositories.Commercant;
 using ProfileService.Repositories.Touriste;
+using ProfileService.Security;
 using ProfileService.Services.Admin;
 using ProfileService.Services.Commercant;
 using ProfileService.Services.Touriste;
-using ProfileService.ErrorHandling.ExceptionMapping;
-using ProfileService.ErrorHandling.Middleware;
+using Scalar.AspNetCore;
+using System.IdentityModel.Tokens.Jwt;
+using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+
 // ── Controllers ───────────────────────────────────────────
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter(allowIntegerValues: false));
+    });
 
 // ── OpenAPI + Scalar ──────────────────────────────────────
 builder.Services.AddOpenApi();
@@ -36,58 +48,100 @@ builder.Services.AddCors(options =>
     });
 });
 
-// ── JWT Authentication ────────────────────────────────────
-var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Missing Jwt:Key");
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Missing Jwt:Issuer");
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? throw new InvalidOperationException("Missing Jwt:Audience");
+// ── JWT Options (Options Pattern) ─────────────────────────
+builder.Services.Configure<JwtOptions>(
+    builder.Configuration.GetSection(JwtOptions.SectionName));
 
+var jwtOptions = builder.Configuration
+    .GetSection(JwtOptions.SectionName)
+    .Get<JwtOptions>()
+    ?? throw new InvalidOperationException("Configuration JWT manquante.");
+
+if (string.IsNullOrWhiteSpace(jwtOptions.Key))
+    throw new InvalidOperationException("Missing Jwt:Key");
+
+if (string.IsNullOrWhiteSpace(jwtOptions.Issuer))
+    throw new InvalidOperationException("Missing Jwt:Issuer");
+
+if (string.IsNullOrWhiteSpace(jwtOptions.Audience))
+    throw new InvalidOperationException("Missing Jwt:Audience");
+
+// ── JWT Authentication ────────────────────────────────────
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.RequireHttpsMetadata = false;
+        options.SaveToken = false;
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+
             ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
+
             ValidateLifetime = true,
+
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtIssuer,
-            ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-            ClockSkew = TimeSpan.Zero
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtOptions.Key)),
+
+            ClockSkew = TimeSpan.Zero,
+
+            NameClaimType = CustomClaimTypes.Email,
+            RoleClaimType = CustomClaimTypes.Role
         };
     });
 
 // ── Authorization ─────────────────────────────────────────
 builder.Services.AddAuthorization();
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ── DbContext ─────────────────────────────────────────────
 builder.Services.AddDbContext<ProfileDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// ── Security / Logging ────────────────────────────────────
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddSingleton<ILogSanitizer, LogSanitizer>();
+
+// ── Mappers ───────────────────────────────────────────────
 builder.Services.AddScoped<ITouristeProfileMapper, TouristeProfileMapper>();
 builder.Services.AddScoped<ICommercantProfileMapper, CommercantProfileMapper>();
 builder.Services.AddScoped<IAdminProfileMapper, AdminProfileMapper>();
+
+// ── Repositories ──────────────────────────────────────────
 builder.Services.AddScoped<ITouristeProfileRepository, TouristeProfileRepository>();
 builder.Services.AddScoped<ICommercantProfileRepository, CommercantProfileRepository>();
 builder.Services.AddScoped<IAdminProfileRepository, AdminProfileRepository>();
+
+// ── Services ──────────────────────────────────────────────
 builder.Services.AddScoped<ITouristeProfileService, TouristeProfileService>();
 builder.Services.AddScoped<ICommercantProfileService, CommercantProfileService>();
 builder.Services.AddScoped<IAdminProfileService, AdminProfileService>();
+
+// ── Error Handling ────────────────────────────────────────
 builder.Services.AddScoped<IExceptionMapper, ExceptionMapper>();
 
 var app = builder.Build();
 
+// ── OpenAPI + Scalar en dev / docker ─────────────────────
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
 }
 
+// ── Middleware pipeline ───────────────────────────────────
+app.UseMiddleware<GlobalExceptionMiddleware>();
+
 app.UseHttpsRedirection();
 app.UseCors("FrontDev");
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseMiddleware<GlobalExceptionMiddleware>();
+
 app.MapControllers();
+
 app.Run();

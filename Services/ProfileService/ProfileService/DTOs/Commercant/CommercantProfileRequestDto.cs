@@ -4,8 +4,9 @@ namespace ProfileService.DTOs.Commercant;
 
 public sealed class CommercantProfileRequestDto
 {
-    [MaxLength(30)]
-    public string? Telephone { get; set; }
+    [Required]
+    [Phone]
+    public string Telephone { get; set; } = default!;
 
     public Guid? CommerceId { get; set; }
 }

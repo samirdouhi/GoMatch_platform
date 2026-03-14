@@ -12,9 +12,6 @@ public sealed class TouristeProfileMapper : ITouristeProfileMapper
         Langue = profile.Langue,
         Nationalite = profile.Nationalite,
         Preferences = profile.Preferences?.ToList() ?? [],
-        BudgetRange = profile.BudgetRange,
-        DureeMoyenne = profile.DureeMoyenne,
-        TypeTouriste = profile.TypeTouriste,
         EquipesSuivies = profile.EquipesSuivies?.ToList() ?? [],
         InscriptionTerminee = profile.InscriptionTerminee
     };
@@ -30,9 +27,6 @@ public sealed class TouristeProfileMapper : ITouristeProfileMapper
         Langue = profile.Langue,
         Nationalite = profile.Nationalite,
         Preferences = profile.Preferences?.ToList() ?? [],
-        BudgetRange = profile.BudgetRange,
-        DureeMoyenne = profile.DureeMoyenne,
-        TypeTouriste = profile.TypeTouriste,
         EquipesSuivies = profile.EquipesSuivies?.ToList() ?? [],
         InscriptionTerminee = profile.InscriptionTerminee,
         CreatedAt = profile.CreatedAt,
@@ -44,9 +38,7 @@ public sealed class TouristeProfileMapper : ITouristeProfileMapper
         UserId = profile.UserId,
         Preferences = profile.Preferences?.ToList() ?? [],
         EquipesSuivies = profile.EquipesSuivies?.ToList() ?? [],
-        TypeTouriste = profile.TypeTouriste,
-        BudgetRange = profile.BudgetRange,
-        DureeMoyenne = profile.DureeMoyenne
+       
     };
 
     public UpdateProfileResponseDto ToUpdateProfileResponseDto(TouristeProfile profile) => new()
@@ -75,17 +67,18 @@ public sealed class TouristeProfileMapper : ITouristeProfileMapper
     public void MapOnboarding(OnboardingRequestDto dto, TouristeProfile profile)
     {
         profile.Preferences = dto.Preferences;
-        profile.BudgetRange = dto.BudgetRange;
-        profile.DureeMoyenne = dto.DureeMoyenne;
-        profile.TypeTouriste = dto.TypeTouriste;
         profile.Langue = dto.Langue;
         profile.Nationalite = dto.Nationalite;
         profile.EquipesSuivies = dto.EquipesSuivies;
     }
 
-    public void MapPreferences(UpdatePreferencesRequestDto dto, TouristeProfile profile)
+    public void MapPreferences(UpdatePreferencesRequestDto request, TouristeProfile profile)
     {
-        profile.Preferences = dto.Preferences;
-        profile.EquipesSuivies = dto.EquipesSuivies;
+        profile.Preferences = request.Preferences;
+        profile.EquipesSuivies = request.EquipesSuivies;
+        profile.Nationalite = request.Nationalite;
+
+        if (request.Langue.HasValue)
+            profile.Langue = request.Langue.Value;
     }
 }
