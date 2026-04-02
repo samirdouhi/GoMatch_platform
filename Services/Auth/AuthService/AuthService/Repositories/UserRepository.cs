@@ -19,6 +19,7 @@ public sealed class UserRepository : IUserRepository
             .AsNoTracking()
             .AnyAsync(u => u.Email == emailNormalise, ct);
     }
+
     public Task<User?> GetByEmailAsync(string emailNormalise, CancellationToken ct)
     {
         return _db.Users
@@ -26,11 +27,16 @@ public sealed class UserRepository : IUserRepository
             .FirstOrDefaultAsync(u => u.Email == emailNormalise, ct);
     }
 
+    public Task<User?> GetByIdAsync(Guid userId, CancellationToken ct)
+    {
+        return _db.Users
+            .FirstOrDefaultAsync(u => u.Id == userId, ct);
+    }
+
     public Task AjouterAsync(User utilisateur, CancellationToken ct)
     {
         return _db.Users.AddAsync(utilisateur, ct).AsTask();
     }
-
 
     public Task SauvegarderAsync(CancellationToken ct)
     {

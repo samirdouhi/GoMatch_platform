@@ -6,6 +6,13 @@ namespace ProfileService.Mappers.Touriste;
 
 public sealed class TouristeProfileMapper : ITouristeProfileMapper
 {
+    private const string MyPhotoEndpoint = "/profile/me/photo";
+
+    private static string BuildPhotoUrl(TouristeProfile profile)
+        => string.IsNullOrWhiteSpace(profile.PhotoPath)
+            ? string.Empty
+            : MyPhotoEndpoint;
+
     public OnboardingResponseDto ToOnboardingResponseDto(TouristeProfile profile) => new()
     {
         UserId = profile.UserId,
@@ -23,7 +30,7 @@ public sealed class TouristeProfileMapper : ITouristeProfileMapper
         Nom = profile.Nom,
         DateNaissance = profile.DateNaissance,
         Genre = profile.Genre,
-        PhotoUrl = profile.PhotoUrl,
+        PhotoUrl = BuildPhotoUrl(profile),
         Langue = profile.Langue,
         Nationalite = profile.Nationalite,
         Preferences = profile.Preferences?.ToList() ?? [],
@@ -38,7 +45,6 @@ public sealed class TouristeProfileMapper : ITouristeProfileMapper
         UserId = profile.UserId,
         Preferences = profile.Preferences?.ToList() ?? [],
         EquipesSuivies = profile.EquipesSuivies?.ToList() ?? [],
-       
     };
 
     public UpdateProfileResponseDto ToUpdateProfileResponseDto(TouristeProfile profile) => new()
@@ -48,7 +54,7 @@ public sealed class TouristeProfileMapper : ITouristeProfileMapper
         Nom = profile.Nom,
         DateNaissance = profile.DateNaissance,
         Genre = profile.Genre,
-        PhotoUrl = profile.PhotoUrl,
+        PhotoUrl = BuildPhotoUrl(profile),
         Langue = profile.Langue,
         UpdatedAt = profile.UpdatedAt
     };
@@ -59,7 +65,7 @@ public sealed class TouristeProfileMapper : ITouristeProfileMapper
         profile.Nom = dto.Nom;
         profile.DateNaissance = dto.DateNaissance;
         profile.Genre = dto.Genre;
-        profile.PhotoUrl = dto.PhotoUrl;
+
         if (dto.Langue.HasValue)
             profile.Langue = dto.Langue.Value;
     }
@@ -68,7 +74,6 @@ public sealed class TouristeProfileMapper : ITouristeProfileMapper
     {
         profile.Preferences = dto.Preferences;
         profile.Langue = dto.Langue;
-        profile.Nationalite = dto.Nationalite;
         profile.EquipesSuivies = dto.EquipesSuivies;
     }
 
@@ -76,7 +81,6 @@ public sealed class TouristeProfileMapper : ITouristeProfileMapper
     {
         profile.Preferences = request.Preferences;
         profile.EquipesSuivies = request.EquipesSuivies;
-        profile.Nationalite = request.Nationalite;
 
         if (request.Langue.HasValue)
             profile.Langue = request.Langue.Value;

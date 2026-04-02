@@ -63,7 +63,10 @@ public class RegistrationController : ControllerBase
             Prenom = request.Prenom,
             Nom = request.Nom,
             DateNaissance = request.DateNaissance,
-            Genre = request.Genre
+            Genre = request.Genre,
+            Nationalite = string.IsNullOrWhiteSpace(request.Nationalite)
+                ? null
+                : request.Nationalite.Trim()
         };
 
         var profileResponse = await profileClient.PostAsJsonAsync(

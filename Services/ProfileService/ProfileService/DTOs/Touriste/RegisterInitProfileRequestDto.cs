@@ -20,4 +20,8 @@ public class RegisterInitProfileRequestDto
 
     [Required]
     public string Genre { get; set; } = default!;
+
+
+    [MaxLength(100)]
+    public string? Nationalite { get; set; }
 }

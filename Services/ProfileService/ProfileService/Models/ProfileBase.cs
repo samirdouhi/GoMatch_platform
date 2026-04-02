@@ -20,9 +20,8 @@ public abstract class ProfileBase
 
     public Genre? Genre { get; set; }
 
-    [MaxLength(512)]
-    public string? PhotoUrl { get; set; }
-
+   
+    public string? PhotoPath { get; set; }
     public Langue Langue { get; set; } = Langue.FR;
 
     public bool InscriptionTerminee { get; set; }

@@ -1,8 +1,16 @@
-﻿namespace ApiGateway.DTOs;
+﻿using System.Text.Json.Serialization;
 
-public class AuthRegisterResponse
+namespace ApiGateway.DTOs
 {
-    public Guid UserId { get; set; }
-    public string Email { get; set; } = default!;
-    public string Message { get; set; } = default!;
+    public class AuthRegisterResponse
+    {
+        [JsonPropertyName("id")]
+        public Guid UserId { get; set; }
+
+        [JsonPropertyName("email")]
+        public string Email { get; set; } = string.Empty;
+
+        [JsonPropertyName("role")]
+        public int Role { get; set; }
+    }
 }

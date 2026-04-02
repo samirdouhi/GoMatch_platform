@@ -17,9 +17,5 @@ public sealed class UpdateProfileRequestDto
 
     public Genre? Genre { get; set; }
 
-    [Url]
-    [MaxLength(512)]
-    public string? PhotoUrl { get; set; }
-
     public Langue? Langue { get; set; }
 }

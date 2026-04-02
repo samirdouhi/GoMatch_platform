@@ -18,6 +18,9 @@ public class RegisterCompleteRequest
     [Required]
     public string Genre { get; set; } = default!;
 
+    [MaxLength(100)]
+    public string? Nationalite { get; set; }
+
     [Required]
     [EmailAddress]
     public string Email { get; set; } = default!;

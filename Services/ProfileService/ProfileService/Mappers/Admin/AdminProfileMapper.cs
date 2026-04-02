@@ -6,12 +6,19 @@ namespace ProfileService.Mappers.Admin;
 
 public sealed class AdminProfileMapper : IAdminProfileMapper
 {
+    private const string MyPhotoEndpoint = "/api/admin/profile/me/photo";
+
+    private static string BuildPhotoUrl(AdminProfile profile)
+        => string.IsNullOrWhiteSpace(profile.PhotoPath)
+            ? string.Empty
+            : MyPhotoEndpoint;
+
     public AdminProfileResponseDto ToResponseDto(AdminProfile profile) => new()
     {
         UserId = profile.UserId,
         Prenom = profile.Prenom,
         Nom = profile.Nom,
-        PhotoUrl = profile.PhotoUrl,
+        PhotoUrl = BuildPhotoUrl(profile),
         Langue = profile.Langue,
         Departement = profile.Departement,
         InscriptionTerminee = profile.InscriptionTerminee,
@@ -26,7 +33,7 @@ public sealed class AdminProfileMapper : IAdminProfileMapper
         Nom = profile.Nom,
         DateNaissance = profile.DateNaissance,
         Genre = profile.Genre,
-        PhotoUrl = profile.PhotoUrl,
+        PhotoUrl = BuildPhotoUrl(profile),
         Langue = profile.Langue,
         UpdatedAt = profile.UpdatedAt
     };
@@ -37,7 +44,7 @@ public sealed class AdminProfileMapper : IAdminProfileMapper
         profile.Nom = dto.Nom;
         profile.DateNaissance = dto.DateNaissance;
         profile.Genre = dto.Genre;
-        profile.PhotoUrl = dto.PhotoUrl;
+
         if (dto.Langue.HasValue)
             profile.Langue = dto.Langue.Value;
     }

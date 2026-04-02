@@ -6,12 +6,19 @@ namespace ProfileService.Mappers.Commercant;
 
 public sealed class CommercantProfileMapper : ICommercantProfileMapper
 {
+    private const string MyPhotoEndpoint = "/api/commercant/profile/me/photo";
+
+    private static string BuildPhotoUrl(CommercantProfile profile)
+        => string.IsNullOrWhiteSpace(profile.PhotoPath)
+            ? string.Empty
+            : MyPhotoEndpoint;
+
     public CommercantProfileResponseDto ToResponseDto(CommercantProfile profile) => new()
     {
         UserId = profile.UserId,
         Prenom = profile.Prenom,
         Nom = profile.Nom,
-        PhotoUrl = profile.PhotoUrl,
+        PhotoUrl = BuildPhotoUrl(profile),
         Langue = profile.Langue,
         Telephone = profile.Telephone,
         CommerceId = profile.CommerceId,
@@ -27,7 +34,7 @@ public sealed class CommercantProfileMapper : ICommercantProfileMapper
         Nom = profile.Nom,
         DateNaissance = profile.DateNaissance,
         Genre = profile.Genre,
-        PhotoUrl = profile.PhotoUrl,
+        PhotoUrl = BuildPhotoUrl(profile),
         Langue = profile.Langue,
         UpdatedAt = profile.UpdatedAt
     };
@@ -44,7 +51,7 @@ public sealed class CommercantProfileMapper : ICommercantProfileMapper
         profile.Nom = dto.Nom;
         profile.DateNaissance = dto.DateNaissance;
         profile.Genre = dto.Genre;
-        profile.PhotoUrl = dto.PhotoUrl;
+
         if (dto.Langue.HasValue)
             profile.Langue = dto.Langue.Value;
     }

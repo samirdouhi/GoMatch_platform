@@ -8,12 +8,14 @@ using ProfileService.Logging;
 using ProfileService.Mappers.Admin;
 using ProfileService.Mappers.Commercant;
 using ProfileService.Mappers.Touriste;
+using ProfileService.Options;
 using ProfileService.Repositories.Admin;
 using ProfileService.Repositories.Commercant;
 using ProfileService.Repositories.Touriste;
 using ProfileService.Security;
 using ProfileService.Services.Admin;
 using ProfileService.Services.Commercant;
+using ProfileService.Services.Storage;
 using ProfileService.Services.Touriste;
 using Scalar.AspNetCore;
 using System.IdentityModel.Tokens.Jwt;
@@ -65,6 +67,12 @@ if (string.IsNullOrWhiteSpace(jwtOptions.Issuer))
 
 if (string.IsNullOrWhiteSpace(jwtOptions.Audience))
     throw new InvalidOperationException("Missing Jwt:Audience");
+
+// ── Photo Storage Options ─────────────────────────────────
+builder.Services.Configure<PhotoStorageOptions>(
+    builder.Configuration.GetSection("PhotoStorage"));
+
+builder.Services.AddScoped<IProfilePhotoStorageService, ProfilePhotoStorageService>();
 
 // ── JWT Authentication ────────────────────────────────────
 builder.Services
@@ -138,6 +146,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseCors("FrontDev");
 app.UseAuthentication();
 app.UseAuthorization();

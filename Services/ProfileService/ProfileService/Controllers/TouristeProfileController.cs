@@ -63,4 +63,27 @@ public sealed class TouristeProfileController : ControllerBase
         var response = await _service.UpdatePreferencesAsync(request, ct);
         return Ok(response);
     }
+
+    [HttpPost("me/photo")]
+    [ProducesResponseType(typeof(PhotoUploadResponseDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PhotoUploadResponseDto>> UploadPhoto(
+        [FromForm] IFormFile photo,
+        CancellationToken ct)
+    {
+        var response = await _service.UploadPhotoAsync(photo, ct);
+        return Ok(response);
+    }
+
+    [HttpGet("me/photo")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetMyPhoto(CancellationToken ct)
+    {
+        var (stream, contentType) = await _service.GetMyPhotoAsync(ct);
+
+        if (stream == null)
+            return NotFound();
+
+        return File(stream, contentType);
+    }
 }

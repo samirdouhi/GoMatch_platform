@@ -1,4 +1,5 @@
-﻿using ProfileService.Dtos.Touriste;
+﻿using Microsoft.AspNetCore.Http;
+using ProfileService.Dtos.Touriste;
 using ProfileService.DTOs.Common;
 using ProfileService.DTOs.Touriste;
 using ProfileService.Enums;
@@ -7,6 +8,7 @@ using ProfileService.Mappers.Touriste;
 using ProfileService.Models;
 using ProfileService.Repositories.Touriste;
 using ProfileService.Security;
+using ProfileService.Services.Storage;
 
 namespace ProfileService.Services.Touriste;
 
@@ -15,15 +17,18 @@ public sealed class TouristeProfileService : ITouristeProfileService
     private readonly ITouristeProfileRepository _repository;
     private readonly ITouristeProfileMapper _mapper;
     private readonly ICurrentUser _currentUser;
+    private readonly IProfilePhotoStorageService _photoStorage;
 
     public TouristeProfileService(
         ITouristeProfileRepository repository,
         ITouristeProfileMapper mapper,
-        ICurrentUser currentUser)
+        ICurrentUser currentUser,
+        IProfilePhotoStorageService photoStorage)
     {
         _repository = repository;
         _mapper = mapper;
         _currentUser = currentUser;
+        _photoStorage = photoStorage;
     }
 
     public async Task<TouristeProfileResponseDto> GetMyProfileAsync(CancellationToken ct)
@@ -68,8 +73,7 @@ public sealed class TouristeProfileService : ITouristeProfileService
         if (exists)
             throw new ConflictException("Le profil touriste existe déjà.");
 
-        Genre parsedGenre;
-        var genreOk = Enum.TryParse<Genre>(request.Genre, true, out parsedGenre);
+        var genreOk = Enum.TryParse<Genre>(request.Genre, true, out var parsedGenre);
 
         if (!genreOk)
             throw new ConflictException("La valeur du genre est invalide.");
@@ -81,6 +85,9 @@ public sealed class TouristeProfileService : ITouristeProfileService
             Nom = request.Nom,
             DateNaissance = DateOnly.FromDateTime(request.DateNaissance),
             Genre = parsedGenre,
+            Nationalite = string.IsNullOrWhiteSpace(request.Nationalite)
+                ? null
+                : request.Nationalite.Trim(),
             InscriptionTerminee = false
         };
 
@@ -164,5 +171,45 @@ public sealed class TouristeProfileService : ITouristeProfileService
         await _repository.SaveChangesAsync();
 
         return _mapper.ToPreferencesResponseDto(profile);
+    }
+
+    public async Task<PhotoUploadResponseDto> UploadPhotoAsync(IFormFile photo, CancellationToken ct)
+    {
+        var userId = _currentUser.UserId;
+
+        var profile = await _repository.GetByUserIdAsync(userId);
+
+        if (profile is null)
+            throw new NotFoundException("Le profil touriste est introuvable.");
+
+        var savedPhotoPath = await _photoStorage.SaveAsync(
+            userId,
+            photo,
+            profile.PhotoPath,
+            ct);
+
+        profile.PhotoPath = savedPhotoPath;
+
+        await _repository.SaveChangesAsync();
+
+        return new PhotoUploadResponseDto
+        {
+            PhotoUrl = "/profile/me/photo"
+        };
+    }
+
+    public async Task<(Stream Stream, string ContentType)> GetMyPhotoAsync(CancellationToken ct)
+    {
+        var userId = _currentUser.UserId;
+
+        var profile = await _repository.GetByUserIdAsync(userId);
+
+        if (profile is null)
+            throw new NotFoundException("Le profil touriste est introuvable.");
+
+        if (string.IsNullOrWhiteSpace(profile.PhotoPath))
+            throw new NotFoundException("Aucune photo de profil n'est enregistrée.");
+
+        return await _photoStorage.OpenReadAsync(profile.PhotoPath, ct);
     }
 }

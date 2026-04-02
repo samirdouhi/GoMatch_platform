@@ -33,7 +33,7 @@
 
   <ItemGroup>
     <Folder Include="ErrorHandling\" />
-    <Folder Include="Services\" />
+    <Folder Include="Storage\ProfilePhotos\" />
   </ItemGroup>
 
 </Project>

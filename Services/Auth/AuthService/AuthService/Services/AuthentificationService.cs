@@ -1,4 +1,5 @@
-﻿using AuthService.DTOs;
+﻿using System.Security.Claims;
+using AuthService.DTOs;
 using AuthService.Enums;
 using AuthService.Exceptions;
 using AuthService.Logging;
@@ -40,10 +41,19 @@ public sealed class AuthentificationService : IAuthService
         _logger = logger;
     }
 
+    private static Guid? GetUserIdFromClaims(ClaimsPrincipal user)
+    {
+        var idValue =
+            user.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+            user.FindFirst("sub")?.Value ??
+            user.FindFirst("userId")?.Value;
+
+        return Guid.TryParse(idValue, out var id) ? id : null;
+    }
+
     public async Task<(bool Success, int Code, string? Erreur, RegisterResponseDto? Data)>
         RegisterAsync(RegisterRequestDto request, CancellationToken ct)
     {
-        // 1) Normaliser email
         var email = LogSanitizer.NormalizeEmail(request.Email);
         _logger.LogInformation("REGISTER_ATTEMPT email={Email}", email);
 
@@ -53,41 +63,33 @@ public sealed class AuthentificationService : IAuthService
             throw new ValidationException("Email obligatoire.", "AUTH.EMAIL_REQUIRED");
         }
 
-        // 2) Vérifier mot de passe fort (NE JAMAIS logger le mot de passe)
         if (!_passwordPolicy.EstValide(request.Password, out var erreurPwd))
         {
             _logger.LogWarning("REGISTER_VALIDATION_FAILED email={Email} code=AUTH.PASSWORD_WEAK", email);
-            throw new ValidationException(erreurPwd, "AUTH.PASSWORD_WEAK");
+            throw new ValidationException(erreurPwd ?? "Mot de passe invalide.", "AUTH.PASSWORD_WEAK");
         }
 
-        // 3) Vérifier email déjà utilisé
         if (await _users.EmailExisteAsync(email, ct))
         {
             _logger.LogWarning("REGISTER_CONFLICT email={Email} code=AUTH.EMAIL_EXISTS", email);
             throw new ConflictException("Email déjà utilisé.", "AUTH.EMAIL_EXISTS");
         }
 
-        // 4) Hasher mot de passe
         var passwordHash = _passwordHasher.Hasher(request.Password);
-
-        // 5) Mapper -> entité (SRP: mapping hors service)
         var user = _mapper.ToUser(email, passwordHash);
 
-        // 6) Logique métier (valeurs serveur)
         user.Id = Guid.NewGuid();
-        user.Role = UserRole.Touriste;   // rôle par défaut côté serveur
+        user.Role = UserRole.Touriste;
         user.IsActive = true;
         user.CreatedAt = DateTime.UtcNow;
 
-        // 7) Sauvegarder
         await _users.AjouterAsync(user, ct);
         await _users.SauvegarderAsync(ct);
 
-        // 8) Log succès
-        _logger.LogInformation("REGISTER_SUCCESS userId={UserId} email={Email} role={Role}",
+        _logger.LogInformation(
+            "REGISTER_SUCCESS userId={UserId} email={Email} role={Role}",
             user.Id, user.Email, user.Role);
 
-        // 9) Retour success
         var response = _mapper.ToRegisterResponse(user);
         return (true, 201, null, response);
     }
@@ -95,7 +97,6 @@ public sealed class AuthentificationService : IAuthService
     public async Task<(bool Success, int Code, string? Erreur, LoginResponseDto? Data)>
         LoginAsync(LoginRequestDto dto, CancellationToken ct)
     {
-        // 1) Normaliser email
         var email = LogSanitizer.NormalizeEmail(dto.Email);
         _logger.LogInformation("LOGIN_ATTEMPT email={Email}", email);
 
@@ -105,7 +106,6 @@ public sealed class AuthentificationService : IAuthService
             throw new ValidationException("Email obligatoire.", "AUTH.EMAIL_REQUIRED");
         }
 
-        // 2) Mot de passe obligatoire (NE JAMAIS logger le mot de passe)
         var motDePasse = dto.Password;
         if (string.IsNullOrWhiteSpace(motDePasse))
         {
@@ -113,7 +113,6 @@ public sealed class AuthentificationService : IAuthService
             throw new ValidationException("Mot de passe obligatoire.", "AUTH.PASSWORD_REQUIRED");
         }
 
-        // 3) Chercher utilisateur
         var user = await _users.GetByEmailAsync(email, ct);
         if (user is null)
         {
@@ -121,26 +120,24 @@ public sealed class AuthentificationService : IAuthService
             throw new UnauthorizedException("Identifiants invalides.");
         }
 
-        // 4) Vérifier compte actif
         if (!user.IsActive)
         {
-            _logger.LogWarning("LOGIN_FORBIDDEN userId={UserId} email={Email} code=AUTH.INACTIVE_ACCOUNT",
+            _logger.LogWarning(
+                "LOGIN_FORBIDDEN userId={UserId} email={Email} code=AUTH.INACTIVE_ACCOUNT",
                 user.Id, user.Email);
             throw new ForbiddenException("Compte inactif.");
         }
 
-        // 5) Vérifier mot de passe
         if (!_passwordHasher.Verifier(motDePasse, user.PasswordHash))
         {
-            _logger.LogWarning("LOGIN_FAILED userId={UserId} email={Email} code=AUTH.INVALID_CREDENTIALS",
+            _logger.LogWarning(
+                "LOGIN_FAILED userId={UserId} email={Email} code=AUTH.INVALID_CREDENTIALS",
                 user.Id, user.Email);
             throw new UnauthorizedException("Identifiants invalides.");
         }
 
-        // 6) Générer JWT (NE JAMAIS logger le token complet)
         var (accessToken, accessExpiresAtUtc) = _jwtService.GenerateToken(user);
 
-        // 7) Générer + sauver RefreshToken (7 jours)
         var now = DateTime.UtcNow;
         var refreshValue = RefreshTokenGenerator.GenerateOpaqueToken();
 
@@ -158,10 +155,10 @@ public sealed class AuthentificationService : IAuthService
         await _refreshTokens.AddAsync(refresh, ct);
         await _refreshTokens.SaveChangesAsync(ct);
 
-        _logger.LogInformation("LOGIN_SUCCESS userId={UserId} email={Email} role={Role} refreshTail={RefreshTail}",
+        _logger.LogInformation(
+            "LOGIN_SUCCESS userId={UserId} email={Email} role={Role} refreshTail={RefreshTail}",
             user.Id, user.Email, user.Role, LogSanitizer.TokenTail(refreshValue));
 
-        // 8) Mapper -> réponse
         var response = _mapper.ToLoginResponse(accessToken, accessExpiresAtUtc, refreshValue);
         return (true, 200, null, response);
     }
@@ -181,29 +178,26 @@ public sealed class AuthentificationService : IAuthService
         }
 
         var now = DateTime.UtcNow;
-
-        // 1) Charger token + user
         var existing = await _refreshTokens.GetByTokenWithUserAsync(refreshToken, ct);
 
-        // 401: inexistant
         if (existing is null)
         {
             _logger.LogWarning("REFRESH_FAILED tokenTail={Tail} reason=NOT_FOUND code=AUTH.UNAUTHORIZED", tail);
             throw new UnauthorizedException("Refresh token invalide.");
         }
 
-        // 401: expiré
         if (existing.ExpiresAtUtc <= now)
         {
-            _logger.LogWarning("REFRESH_FAILED userId={UserId} tokenTail={Tail} reason=EXPIRED code=AUTH.UNAUTHORIZED",
+            _logger.LogWarning(
+                "REFRESH_FAILED userId={UserId} tokenTail={Tail} reason=EXPIRED code=AUTH.UNAUTHORIZED",
                 existing.UserId, tail);
             throw new UnauthorizedException("Refresh token expiré.");
         }
 
-        // 401: révoqué (reuse detection => on révoque toute la session)
         if (existing.RevokedAtUtc is not null)
         {
-            _logger.LogWarning("REFRESH_REVOKED userId={UserId} tokenTail={Tail} reason=REVOKED_REUSE_DETECTED",
+            _logger.LogWarning(
+                "REFRESH_REVOKED userId={UserId} tokenTail={Tail} reason=REVOKED_REUSE_DETECTED",
                 existing.UserId, tail);
 
             await _refreshTokens.RevokeAllActiveForUserAsync(existing.UserId, now, ct);
@@ -212,23 +206,23 @@ public sealed class AuthentificationService : IAuthService
             throw new UnauthorizedException("Refresh token révoqué.");
         }
 
-        // 401/403: user invalide/inactif
         var user = existing.User;
         if (user is null)
         {
-            _logger.LogWarning("REFRESH_FAILED userId={UserId} tokenTail={Tail} reason=USER_NULL",
+            _logger.LogWarning(
+                "REFRESH_FAILED userId={UserId} tokenTail={Tail} reason=USER_NULL",
                 existing.UserId, tail);
             throw new UnauthorizedException("Utilisateur invalide.");
         }
 
         if (!user.IsActive)
         {
-            _logger.LogWarning("REFRESH_FORBIDDEN userId={UserId} email={Email} reason=USER_INACTIVE",
+            _logger.LogWarning(
+                "REFRESH_FORBIDDEN userId={UserId} email={Email} reason=USER_INACTIVE",
                 user.Id, user.Email);
             throw new ForbiddenException("Utilisateur inactif.");
         }
 
-        // 2) Rotation: révoquer l’ancien + créer nouveau
         var newRefreshValue = RefreshTokenGenerator.GenerateOpaqueToken();
         var newTail = LogSanitizer.TokenTail(newRefreshValue);
 
@@ -248,16 +242,14 @@ public sealed class AuthentificationService : IAuthService
 
         await _refreshTokens.AddAsync(newRefresh, ct);
 
-        // 3) Nouveau JWT
         var (accessToken, accessExpiresAtUtc) = _jwtService.GenerateToken(user);
 
-        // 4) Commit
         await _refreshTokens.SaveChangesAsync(ct);
 
-        _logger.LogInformation("REFRESH_SUCCESS userId={UserId} email={Email} oldTail={OldTail} newTail={NewTail}",
+        _logger.LogInformation(
+            "REFRESH_SUCCESS userId={UserId} email={Email} oldTail={OldTail} newTail={NewTail}",
             user.Id, user.Email, tail, newTail);
 
-        // 5) Réponse
         var response = _mapper.ToRefreshResponse(accessToken, accessExpiresAtUtc, newRefreshValue);
         return (true, 200, null, response);
     }
@@ -284,7 +276,6 @@ public sealed class AuthentificationService : IAuthService
             throw new UnauthorizedException("Refresh token invalide.");
         }
 
-        // déjà logout => idempotent
         if (existing.RevokedAtUtc is not null)
         {
             _logger.LogInformation("LOGOUT_ALREADY_DONE userId={UserId} tokenTail={Tail}", existing.UserId, tail);
@@ -295,6 +286,163 @@ public sealed class AuthentificationService : IAuthService
         await _refreshTokens.SaveChangesAsync(ct);
 
         _logger.LogInformation("LOGOUT_SUCCESS userId={UserId} tokenTail={Tail}", existing.UserId, tail);
+        return (true, 200, null);
+    }
+
+    public async Task<(bool Success, int Code, string? Erreur, AuthMeResponseDto? Data)>
+        GetMeAsync(ClaimsPrincipal user, CancellationToken ct)
+    {
+        var userId = GetUserIdFromClaims(user);
+        if (userId is null)
+        {
+            _logger.LogWarning("ME_FAILED code=AUTH.UNAUTHORIZED reason=CLAIM_MISSING");
+            throw new UnauthorizedException("Utilisateur non authentifié.");
+        }
+
+        var entity = await _users.GetByIdAsync(userId.Value, ct);
+        if (entity is null)
+        {
+            _logger.LogWarning("ME_FAILED userId={UserId} code=AUTH.USER_NOT_FOUND", userId.Value);
+            throw new NotFoundException("Utilisateur introuvable.", "AUTH.USER_NOT_FOUND");
+        }
+
+        var response = new AuthMeResponseDto
+        {
+            UserId = entity.Id,
+            Email = entity.Email,
+            Role = entity.Role.ToString()
+        };
+
+        _logger.LogInformation("ME_SUCCESS userId={UserId} email={Email}", entity.Id, entity.Email);
+
+        return (true, 200, null, response);
+    }
+
+    public async Task<(bool Success, int Code, string? Erreur)>
+        ChangeEmailAsync(ClaimsPrincipal user, ChangeEmailRequestDto dto, CancellationToken ct)
+    {
+        var userId = GetUserIdFromClaims(user);
+        if (userId is null)
+        {
+            _logger.LogWarning("CHANGE_EMAIL_FAILED code=AUTH.UNAUTHORIZED reason=CLAIM_MISSING");
+            throw new UnauthorizedException("Utilisateur non authentifié.");
+        }
+
+        var entity = await _users.GetByIdAsync(userId.Value, ct);
+        if (entity is null)
+        {
+            _logger.LogWarning("CHANGE_EMAIL_FAILED userId={UserId} code=AUTH.USER_NOT_FOUND", userId.Value);
+            throw new NotFoundException("Utilisateur introuvable.", "AUTH.USER_NOT_FOUND");
+        }
+
+        if (!entity.IsActive)
+        {
+            _logger.LogWarning("CHANGE_EMAIL_FORBIDDEN userId={UserId} reason=INACTIVE", entity.Id);
+            throw new ForbiddenException("Compte inactif.");
+        }
+
+        var currentPassword = dto.CurrentPassword?.Trim() ?? string.Empty;
+        var newEmail = LogSanitizer.NormalizeEmail(dto.NewEmail);
+
+        if (string.IsNullOrWhiteSpace(newEmail))
+        {
+            _logger.LogWarning("CHANGE_EMAIL_VALIDATION_FAILED userId={UserId} code=AUTH.EMAIL_REQUIRED", entity.Id);
+            throw new ValidationException("Nouvel email obligatoire.", "AUTH.EMAIL_REQUIRED");
+        }
+
+        if (string.IsNullOrWhiteSpace(currentPassword))
+        {
+            _logger.LogWarning("CHANGE_EMAIL_VALIDATION_FAILED userId={UserId} code=AUTH.PASSWORD_REQUIRED", entity.Id);
+            throw new ValidationException("Mot de passe actuel obligatoire.", "AUTH.PASSWORD_REQUIRED");
+        }
+
+        if (!_passwordHasher.Verifier(currentPassword, entity.PasswordHash))
+        {
+            _logger.LogWarning("CHANGE_EMAIL_FAILED userId={UserId} code=AUTH.INVALID_PASSWORD", entity.Id);
+            throw new UnauthorizedException("Mot de passe actuel incorrect.");
+        }
+
+        if (string.Equals(entity.Email, newEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("CHANGE_EMAIL_CONFLICT userId={UserId} code=AUTH.EMAIL_SAME", entity.Id);
+            throw new ConflictException("Le nouvel email est identique à l’ancien.", "AUTH.EMAIL_SAME");
+        }
+
+        if (await _users.EmailExisteAsync(newEmail, ct))
+        {
+            _logger.LogWarning(
+                "CHANGE_EMAIL_CONFLICT userId={UserId} newEmail={Email} code=AUTH.EMAIL_EXISTS",
+                entity.Id, newEmail);
+            throw new ConflictException("Email déjà utilisé.", "AUTH.EMAIL_EXISTS");
+        }
+
+        entity.Email = newEmail;
+        await _users.SauvegarderAsync(ct);
+
+        _logger.LogInformation("CHANGE_EMAIL_SUCCESS userId={UserId} newEmail={Email}", entity.Id, entity.Email);
+        return (true, 200, null);
+    }
+
+    public async Task<(bool Success, int Code, string? Erreur)>
+        ChangePasswordAsync(ClaimsPrincipal user, ChangePasswordRequestDto dto, CancellationToken ct)
+    {
+        var userId = GetUserIdFromClaims(user);
+        if (userId is null)
+        {
+            _logger.LogWarning("CHANGE_PASSWORD_FAILED code=AUTH.UNAUTHORIZED reason=CLAIM_MISSING");
+            throw new UnauthorizedException("Utilisateur non authentifié.");
+        }
+
+        var entity = await _users.GetByIdAsync(userId.Value, ct);
+        if (entity is null)
+        {
+            _logger.LogWarning("CHANGE_PASSWORD_FAILED userId={UserId} code=AUTH.USER_NOT_FOUND", userId.Value);
+            throw new NotFoundException("Utilisateur introuvable.", "AUTH.USER_NOT_FOUND");
+        }
+
+        if (!entity.IsActive)
+        {
+            _logger.LogWarning("CHANGE_PASSWORD_FORBIDDEN userId={UserId} reason=INACTIVE", entity.Id);
+            throw new ForbiddenException("Compte inactif.");
+        }
+
+        var currentPassword = dto.CurrentPassword?.Trim() ?? string.Empty;
+        var newPassword = dto.NewPassword ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(currentPassword))
+        {
+            _logger.LogWarning("CHANGE_PASSWORD_VALIDATION_FAILED userId={UserId} code=AUTH.PASSWORD_REQUIRED", entity.Id);
+            throw new ValidationException("Mot de passe actuel obligatoire.", "AUTH.PASSWORD_REQUIRED");
+        }
+
+        if (string.IsNullOrWhiteSpace(newPassword))
+        {
+            _logger.LogWarning("CHANGE_PASSWORD_VALIDATION_FAILED userId={UserId} code=AUTH.NEW_PASSWORD_REQUIRED", entity.Id);
+            throw new ValidationException("Nouveau mot de passe obligatoire.", "AUTH.NEW_PASSWORD_REQUIRED");
+        }
+
+        if (!_passwordPolicy.EstValide(newPassword, out var erreurPwd))
+        {
+            _logger.LogWarning("CHANGE_PASSWORD_VALIDATION_FAILED userId={UserId} code=AUTH.PASSWORD_WEAK", entity.Id);
+            throw new ValidationException(erreurPwd ?? "Mot de passe invalide.", "AUTH.PASSWORD_WEAK");
+        }
+
+        if (!_passwordHasher.Verifier(currentPassword, entity.PasswordHash))
+        {
+            _logger.LogWarning("CHANGE_PASSWORD_FAILED userId={UserId} code=AUTH.INVALID_PASSWORD", entity.Id);
+            throw new UnauthorizedException("Mot de passe actuel incorrect.");
+        }
+
+        if (_passwordHasher.Verifier(newPassword, entity.PasswordHash))
+        {
+            _logger.LogWarning("CHANGE_PASSWORD_CONFLICT userId={UserId} code=AUTH.PASSWORD_SAME", entity.Id);
+            throw new ConflictException("Le nouveau mot de passe doit être différent de l’ancien.", "AUTH.PASSWORD_SAME");
+        }
+
+        entity.PasswordHash = _passwordHasher.Hasher(newPassword);
+        await _users.SauvegarderAsync(ct);
+
+        _logger.LogInformation("CHANGE_PASSWORD_SUCCESS userId={UserId}", entity.Id);
         return (true, 200, null);
     }
 }

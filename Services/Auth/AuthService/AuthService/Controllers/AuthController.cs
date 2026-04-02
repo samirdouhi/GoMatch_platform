@@ -19,22 +19,14 @@ public sealed class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequestDto request, CancellationToken ct)
     {
-        // ✅ Grâce à [ApiController] + DataAnnotations sur RegisterRequestDto :
-        // - Email invalide => 400 automatiquement
-        // - Password trop court => 400 automatiquement
-
         var (success, code, erreur, data) = await _service.RegisterAsync(request, ct);
 
         if (!success)
-        {
-            // 400 (mot de passe faible) ou 409 (email déjà utilisé)
             return StatusCode(code, new { erreur });
-        }
 
-        // ✅ 201 : réponse sécurisée
         return StatusCode(201, data);
     }
-    // POST /auth/login
+
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto dto, CancellationToken ct)
     {
@@ -43,23 +35,20 @@ public sealed class AuthController : ControllerBase
         if (!success)
             return StatusCode(code, new { message = erreur });
 
-        // ✅ 200 OK + token
         return Ok(data);
     }
 
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout(
-    [FromBody] RefreshRequestDto dto,
-    CancellationToken ct)
+    public async Task<IActionResult> Logout([FromBody] RefreshRequestDto dto, CancellationToken ct)
     {
-        var (success, code, erreur) =
-            await _service.LogoutAsync(dto.RefreshToken, ct);
+        var (success, code, erreur) = await _service.LogoutAsync(dto.RefreshToken, ct);
 
         if (!success)
             return StatusCode(code, new { erreur });
 
         return Ok(new { message = "Déconnexion réussie." });
     }
+
     [Authorize]
     [HttpGet("me")]
     public IActionResult Me()
@@ -70,19 +59,68 @@ public sealed class AuthController : ControllerBase
             c.Value
         }));
     }
+
+    [Authorize]
+    [HttpGet("me/details")]
+    public async Task<IActionResult> MeDetails(CancellationToken ct)
+    {
+        var (success, code, erreur, data) = await _service.GetMeAsync(User, ct);
+
+        if (!success)
+            return StatusCode(code, new { message = erreur });
+
+        return Ok(data);
+    }
+
+    [Authorize]
+    [HttpPut("me/email")]
+    public async Task<IActionResult> ChangeEmail(
+        [FromBody] ChangeEmailRequestDto dto,
+        CancellationToken ct)
+    {
+        var (success, code, erreur) = await _service.ChangeEmailAsync(User, dto, ct);
+
+        if (!success)
+            return StatusCode(code, new { message = erreur });
+
+        return Ok(new { message = "Email modifié avec succès." });
+    }
+
+    [Authorize]
+    [HttpPut("me/password")]
+    public async Task<IActionResult> ChangePassword(
+        [FromBody] ChangePasswordRequestDto dto,
+        CancellationToken ct)
+    {
+        var (success, code, erreur) = await _service.ChangePasswordAsync(User, dto, ct);
+
+        if (!success)
+            return StatusCode(code, new { message = erreur });
+
+        return Ok(new { message = "Mot de passe modifié avec succès." });
+    }
+
     [Authorize(Roles = "Admin")]
     [HttpGet("admin-test")]
     public IActionResult AdminTest()
     {
         return Ok("Admin OK");
     }
+
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh([FromBody] RefreshRequestDto dto, CancellationToken ct)
     {
         var (success, code, erreur, data) = await _service.RefreshAsync(dto, ct);
-        if (!success) return StatusCode(code, new { erreur });
+
+        if (!success)
+            return StatusCode(code, new { erreur });
+
         return Ok(data);
     }
+
     [HttpGet("boom")]
-    public IActionResult Boom() => throw new Exception("BOOM TEST");
+    public IActionResult Boom()
+    {
+        throw new Exception("BOOM TEST");
+    }
 }
