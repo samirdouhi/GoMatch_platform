@@ -11,6 +11,9 @@ public interface IAuthService
     Task<(bool Success, int Code, string? Erreur, LoginResponseDto? Data)>
         LoginAsync(LoginRequestDto dto, CancellationToken ct);
 
+    Task<(bool Success, int Code, string? Erreur, LoginResponseDto? Data)>
+        GoogleLoginAsync(GoogleLoginRequestDto dto, CancellationToken ct);
+
     Task<(bool Success, int Code, string? Erreur, RefreshResponseDto? Data)>
         RefreshAsync(RefreshRequestDto dto, CancellationToken ct);
 
@@ -25,4 +28,7 @@ public interface IAuthService
 
     Task<(bool Success, int Code, string? Erreur)>
         ChangePasswordAsync(ClaimsPrincipal user, ChangePasswordRequestDto dto, CancellationToken ct);
+
+    Task<(bool Success, int Code, string? Erreur)>
+        GrantMerchantRoleAsync(Guid userId, CancellationToken ct);
 }

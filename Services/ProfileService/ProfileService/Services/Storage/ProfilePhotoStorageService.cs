@@ -32,12 +32,13 @@ public sealed class ProfilePhotoStorageService : IProfilePhotoStorageService
         return fileName;
     }
 
-    public async Task<(Stream Stream, string ContentType)> OpenReadAsync(string photoPath, CancellationToken ct)
+    public Task<(Stream Stream, string ContentType)> OpenReadAsync(string photoPath, CancellationToken ct)
     {
         var rootPath = Path.Combine(_env.ContentRootPath, _options.RootPath);
         var fullPath = Path.Combine(rootPath, photoPath);
 
         var stream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
-        return (stream, "image/jpeg");
+
+        return Task.FromResult<(Stream, string)>((stream, "image/jpeg"));
     }
 }

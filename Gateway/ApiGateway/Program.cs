@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.OpenApi;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using System.Text;
@@ -18,7 +17,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("FrontDev", policy =>
     {
         policy
-            .WithOrigins("http://localhost:3000")
+            .WithOrigins(
+                "http://localhost:3000",
+                "https://localhost:3000"
+            )
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -57,7 +59,8 @@ builder.Services
 
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwtKey)),
+                Encoding.UTF8.GetBytes(jwtKey)
+            ),
 
             ClockSkew = TimeSpan.Zero
         };
@@ -76,8 +79,14 @@ builder.Services.AddHttpClient("ProfileService", client =>
     client.BaseAddress = new Uri(builder.Configuration["Services:ProfileService"]!);
 });
 
+builder.Services.AddHttpClient("BusinessService", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["Services:BusinessService"]!);
+});
+
 // YARP Reverse Proxy
-builder.Services.AddReverseProxy()
+builder.Services
+    .AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
 var app = builder.Build();

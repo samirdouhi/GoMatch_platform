@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Http;
-using ProfileService.Dtos.Touriste;
 using ProfileService.DTOs.Common;
 using ProfileService.DTOs.Touriste;
 
@@ -12,19 +11,19 @@ public interface ITouristeProfileService
     Task<TouristeProfileResponseDto> InitProfileAsync(CancellationToken ct);
 
     Task<TouristeProfileResponseDto> RegisterInitAsync(
-        RegisterInitProfileRequestDto request,
+        RegisterTouristeProfileRequestDto request,
         CancellationToken ct);
 
-    Task<UpdateProfileResponseDto> UpdateProfileAsync(
-        UpdateProfileRequestDto request,
+    Task<UpdateUserProfileResponseDto> UpdateUserProfileAsync(
+        UpdateUserProfileRequestDto request,
         CancellationToken ct);
 
-    Task<OnboardingResponseDto> CompleteOnboardingAsync(
-        OnboardingRequestDto request,
+    Task<CompleteTouristeOnboardingResponseDto> CompleteOnboardingAsync(
+        CompleteTouristeOnboardingRequestDto request,
         CancellationToken ct);
 
-    Task<PreferencesResponseDto> UpdatePreferencesAsync(
-        UpdatePreferencesRequestDto request,
+    Task<TouristePreferencesResponseDto> UpdatePreferencesAsync(
+        UpdateTouristePreferencesRequestDto request,
         CancellationToken ct);
 
     Task<PhotoUploadResponseDto> UploadPhotoAsync(IFormFile photo, CancellationToken ct);

@@ -3,6 +3,7 @@ using AuthService.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+
 namespace AuthService.Controllers;
 
 [ApiController]
@@ -10,10 +11,12 @@ namespace AuthService.Controllers;
 public sealed class AuthController : ControllerBase
 {
     private readonly IAuthService _service;
+    private readonly IConfiguration _configuration;
 
-    public AuthController(IAuthService service)
+    public AuthController(IAuthService service, IConfiguration configuration)
     {
         _service = service;
+        _configuration = configuration;
     }
 
     [HttpPost("register")]
@@ -24,13 +27,24 @@ public sealed class AuthController : ControllerBase
         if (!success)
             return StatusCode(code, new { erreur });
 
-        return StatusCode(201, data);
+        return StatusCode(StatusCodes.Status201Created, data);
     }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto dto, CancellationToken ct)
     {
         var (success, code, erreur, data) = await _service.LoginAsync(dto, ct);
+
+        if (!success)
+            return StatusCode(code, new { message = erreur });
+
+        return Ok(data);
+    }
+
+    [HttpPost("google")]
+    public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequestDto dto, CancellationToken ct)
+    {
+        var (success, code, erreur, data) = await _service.GoogleLoginAsync(dto, ct);
 
         if (!success)
             return StatusCode(code, new { message = erreur });
@@ -100,13 +114,6 @@ public sealed class AuthController : ControllerBase
         return Ok(new { message = "Mot de passe modifié avec succès." });
     }
 
-    [Authorize(Roles = "Admin")]
-    [HttpGet("admin-test")]
-    public IActionResult AdminTest()
-    {
-        return Ok("Admin OK");
-    }
-
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh([FromBody] RefreshRequestDto dto, CancellationToken ct)
     {
@@ -118,9 +125,24 @@ public sealed class AuthController : ControllerBase
         return Ok(data);
     }
 
-    [HttpGet("boom")]
-    public IActionResult Boom()
+    [AllowAnonymous]
+    [HttpPost("users/{userId:guid}/grant-merchant-role")]
+    public async Task<IActionResult> GrantMerchantRole(Guid userId, CancellationToken ct)
     {
-        throw new Exception("BOOM TEST");
+        var internalKey = Request.Headers["X-Internal-Api-Key"].FirstOrDefault();
+        var expectedKey = _configuration["InternalApiKey"];
+
+        if (string.IsNullOrWhiteSpace(expectedKey))
+            return StatusCode(500, new { message = "InternalApiKey not configured in AuthService." });
+
+        if (internalKey != expectedKey)
+            return Unauthorized(new { message = "Invalid internal API key." });
+
+        var (success, code, erreur) = await _service.GrantMerchantRoleAsync(userId, ct);
+
+        if (!success)
+            return StatusCode(code, new { message = erreur });
+
+        return Ok(new { message = "Rôle commerçant attribué avec succès." });
     }
 }

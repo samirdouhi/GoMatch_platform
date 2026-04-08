@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Http;
-using ProfileService.Dtos.Touriste;
 using ProfileService.DTOs.Common;
 using ProfileService.DTOs.Touriste;
 using ProfileService.Enums;
@@ -7,6 +6,7 @@ using ProfileService.ErrorHandling.Exceptions;
 using ProfileService.Mappers.Touriste;
 using ProfileService.Models;
 using ProfileService.Repositories.Touriste;
+using ProfileService.Repositories.UserProfiles;
 using ProfileService.Security;
 using ProfileService.Services.Storage;
 
@@ -15,17 +15,20 @@ namespace ProfileService.Services.Touriste;
 public sealed class TouristeProfileService : ITouristeProfileService
 {
     private readonly ITouristeProfileRepository _repository;
+    private readonly IUserProfileRepository _userRepository;
     private readonly ITouristeProfileMapper _mapper;
     private readonly ICurrentUser _currentUser;
     private readonly IProfilePhotoStorageService _photoStorage;
 
     public TouristeProfileService(
         ITouristeProfileRepository repository,
+        IUserProfileRepository userRepository,
         ITouristeProfileMapper mapper,
         ICurrentUser currentUser,
         IProfilePhotoStorageService photoStorage)
     {
         _repository = repository;
+        _userRepository = userRepository;
         _mapper = mapper;
         _currentUser = currentUser;
         _photoStorage = photoStorage;
@@ -35,12 +38,15 @@ public sealed class TouristeProfileService : ITouristeProfileService
     {
         var userId = _currentUser.UserId;
 
+        var userProfile = await _userRepository.GetByUserIdAsync(userId);
+        if (userProfile is null)
+            throw new NotFoundException("UserProfile introuvable.");
+
         var profile = await _repository.GetByUserIdAsync(userId);
-
         if (profile is null)
-            throw new NotFoundException("Le profil touriste est introuvable.");
+            throw new NotFoundException("Profil touriste introuvable.");
 
-        return _mapper.ToProfileResponseDto(profile);
+        return _mapper.ToProfileResponseDto(userProfile, profile);
     }
 
     public async Task<TouristeProfileResponseDto> InitProfileAsync(CancellationToken ct)
@@ -48,149 +54,182 @@ public sealed class TouristeProfileService : ITouristeProfileService
         var userId = _currentUser.UserId;
 
         var exists = await _repository.ExistsByUserIdAsync(userId);
-
         if (exists)
             throw new ConflictException("Le profil touriste existe déjà.");
+
+        // 🔥 FIX : auto-create UserProfile
+        var userProfile = await _userRepository.GetByUserIdAsync(userId);
+
+        if (userProfile is null)
+        {
+            userProfile = new UserProfile
+            {
+                UserId = userId,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _userRepository.AddAsync(userProfile);
+            await _userRepository.SaveChangesAsync();
+        }
 
         var profile = new TouristeProfile
         {
             UserId = userId,
-            InscriptionTerminee = false
+            UserProfileId = userProfile.Id,
+            InscriptionTerminee = false,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         await _repository.AddAsync(profile);
         await _repository.SaveChangesAsync();
 
-        return _mapper.ToProfileResponseDto(profile);
+        return _mapper.ToProfileResponseDto(userProfile, profile);
     }
-
     public async Task<TouristeProfileResponseDto> RegisterInitAsync(
-        RegisterInitProfileRequestDto request,
+        RegisterTouristeProfileRequestDto request,
         CancellationToken ct)
     {
         var exists = await _repository.ExistsByUserIdAsync(request.UserId);
-
         if (exists)
             throw new ConflictException("Le profil touriste existe déjà.");
 
-        var genreOk = Enum.TryParse<Genre>(request.Genre, true, out var parsedGenre);
+        var userProfile = await _userRepository.GetByUserIdAsync(request.UserId);
 
-        if (!genreOk)
-            throw new ConflictException("La valeur du genre est invalide.");
+        if (userProfile is null)
+        {
+            if (!Enum.TryParse<Genre>(request.Genre, true, out var parsedGenre))
+                throw new ConflictException("Genre invalide.");
+
+            userProfile = new UserProfile
+            {
+                UserId = request.UserId,
+                Prenom = request.Prenom,
+                Nom = request.Nom,
+                DateNaissance = DateOnly.FromDateTime(request.DateNaissance),
+                Genre = parsedGenre,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _userRepository.AddAsync(userProfile);
+            await _userRepository.SaveChangesAsync();
+        }
 
         var profile = new TouristeProfile
         {
             UserId = request.UserId,
-            Prenom = request.Prenom,
-            Nom = request.Nom,
-            DateNaissance = DateOnly.FromDateTime(request.DateNaissance),
-            Genre = parsedGenre,
-            Nationalite = string.IsNullOrWhiteSpace(request.Nationalite)
-                ? null
-                : request.Nationalite.Trim(),
-            InscriptionTerminee = false
+            UserProfileId = userProfile.Id,
+            Nationalite = request.Nationalite,
+            InscriptionTerminee = false,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
         await _repository.AddAsync(profile);
         await _repository.SaveChangesAsync();
 
-        return _mapper.ToProfileResponseDto(profile);
+        return _mapper.ToProfileResponseDto(userProfile, profile);
     }
 
-    public async Task<UpdateProfileResponseDto> UpdateProfileAsync(
-        UpdateProfileRequestDto request,
+    public async Task<UpdateUserProfileResponseDto> UpdateUserProfileAsync(
+        UpdateUserProfileRequestDto request,
         CancellationToken ct)
     {
         var userId = _currentUser.UserId;
 
-        var profile = await _repository.GetByUserIdAsync(userId);
+        var userProfile = await _userRepository.GetByUserIdAsync(userId);
+        if (userProfile is null)
+            throw new NotFoundException("UserProfile introuvable.");
 
-        if (profile is null)
-            throw new NotFoundException("Le profil touriste est introuvable.");
+        if (!Enum.TryParse<Genre>(request.Genre, true, out var parsedGenre))
+            throw new ConflictException("Genre invalide.");
 
-        if (string.IsNullOrWhiteSpace(request.Prenom))
-            throw new ConflictException("Le prénom est obligatoire.");
+        userProfile.Prenom = request.Prenom.Trim();
+        userProfile.Nom = request.Nom.Trim();
+        userProfile.DateNaissance = DateOnly.FromDateTime(request.DateNaissance);
+        userProfile.Genre = parsedGenre;
 
-        if (string.IsNullOrWhiteSpace(request.Nom))
-            throw new ConflictException("Le nom est obligatoire.");
-
-        if (request.DateNaissance is null)
-            throw new ConflictException("La date de naissance est obligatoire.");
-
-        if (request.Genre is null)
-            throw new ConflictException("Le genre est obligatoire.");
-
-        _mapper.MapCommonUpdates(request, profile);
-
-        await _repository.SaveChangesAsync();
-
-        return _mapper.ToUpdateProfileResponseDto(profile);
-    }
-
-    public async Task<OnboardingResponseDto> CompleteOnboardingAsync(
-        OnboardingRequestDto request,
-        CancellationToken ct)
-    {
-        var userId = _currentUser.UserId;
-
-        var profile = await _repository.GetByUserIdAsync(userId);
-
-        if (profile is null)
-            throw new NotFoundException("Le profil touriste est introuvable.");
-
-        if (string.IsNullOrWhiteSpace(profile.Prenom) ||
-            string.IsNullOrWhiteSpace(profile.Nom) ||
-            profile.DateNaissance is null ||
-            profile.Genre is null)
+        if (!string.IsNullOrWhiteSpace(request.Langue))
         {
-            throw new ConflictException(
-                "Le prénom, le nom, la date de naissance et le genre sont obligatoires avant de terminer l'inscription.");
+            if (!Enum.TryParse<Langue>(request.Langue, true, out var parsedLangue))
+                throw new ConflictException("Langue invalide.");
+
+            userProfile.Langue = parsedLangue;
         }
 
-        _mapper.MapOnboarding(request, profile);
-        profile.InscriptionTerminee = true;
+        userProfile.UpdatedAt = DateTime.UtcNow;
 
-        await _repository.SaveChangesAsync();
+        _userRepository.Update(userProfile);
+        await _userRepository.SaveChangesAsync();
 
-        return _mapper.ToOnboardingResponseDto(profile);
+        return _mapper.ToUpdateUserProfileResponseDto(userProfile);
     }
 
-    public async Task<PreferencesResponseDto> UpdatePreferencesAsync(
-        UpdatePreferencesRequestDto request,
-        CancellationToken ct)
+    public async Task<TouristePreferencesResponseDto> UpdatePreferencesAsync(
+     UpdateTouristePreferencesRequestDto request,
+     CancellationToken ct)
     {
         var userId = _currentUser.UserId;
 
         var profile = await _repository.GetByUserIdAsync(userId);
-
         if (profile is null)
-            throw new NotFoundException("Le profil touriste est introuvable.");
+            throw new NotFoundException("Profil touriste introuvable.");
 
-        _mapper.MapPreferences(request, profile);
+        profile.PreferencesJson = request.PreferencesJson;
+        profile.EquipesSuiviesJson = request.EquipesSuiviesJson;
+        profile.UpdatedAt = DateTime.UtcNow;
 
         await _repository.SaveChangesAsync();
 
         return _mapper.ToPreferencesResponseDto(profile);
     }
 
-    public async Task<PhotoUploadResponseDto> UploadPhotoAsync(IFormFile photo, CancellationToken ct)
+    public async Task<CompleteTouristeOnboardingResponseDto> CompleteOnboardingAsync(
+        CompleteTouristeOnboardingRequestDto request,
+        CancellationToken ct)
     {
         var userId = _currentUser.UserId;
 
         var profile = await _repository.GetByUserIdAsync(userId);
-
         if (profile is null)
-            throw new NotFoundException("Le profil touriste est introuvable.");
+            throw new NotFoundException("Profil touriste introuvable.");
 
-        var savedPhotoPath = await _photoStorage.SaveAsync(
-            userId,
-            photo,
-            profile.PhotoPath,
-            ct);
+        _mapper.MapOnboarding(request, profile);
 
-        profile.PhotoPath = savedPhotoPath;
+        profile.InscriptionTerminee = true;
+        profile.UpdatedAt = DateTime.UtcNow;
 
         await _repository.SaveChangesAsync();
+
+        return new CompleteTouristeOnboardingResponseDto
+        {
+            InscriptionTerminee = true
+        };
+    }
+
+    public async Task<PhotoUploadResponseDto> UploadPhotoAsync(IFormFile photo, CancellationToken ct)
+    {
+        var userId = _currentUser.UserId;
+
+        var userProfile = await _userRepository.GetByUserIdAsync(userId);
+        if (userProfile is null)
+            throw new NotFoundException("UserProfile introuvable.");
+
+        var savedPath = await _photoStorage.SaveAsync(
+            userId,
+            photo,
+            userProfile.PhotoPath,
+            ct);
+
+        userProfile.PhotoPath = savedPath;
+        userProfile.UpdatedAt = DateTime.UtcNow;
+
+        _userRepository.Update(userProfile);
+        await _userRepository.SaveChangesAsync();
 
         return new PhotoUploadResponseDto
         {
@@ -202,14 +241,10 @@ public sealed class TouristeProfileService : ITouristeProfileService
     {
         var userId = _currentUser.UserId;
 
-        var profile = await _repository.GetByUserIdAsync(userId);
+        var userProfile = await _userRepository.GetByUserIdAsync(userId);
+        if (userProfile is null || string.IsNullOrEmpty(userProfile.PhotoPath))
+            throw new NotFoundException("Photo introuvable.");
 
-        if (profile is null)
-            throw new NotFoundException("Le profil touriste est introuvable.");
-
-        if (string.IsNullOrWhiteSpace(profile.PhotoPath))
-            throw new NotFoundException("Aucune photo de profil n'est enregistrée.");
-
-        return await _photoStorage.OpenReadAsync(profile.PhotoPath, ct);
+        return await _photoStorage.OpenReadAsync(userProfile.PhotoPath, ct);
     }
 }

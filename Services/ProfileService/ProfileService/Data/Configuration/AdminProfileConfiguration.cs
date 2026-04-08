@@ -8,11 +8,40 @@ public sealed class AdminProfileConfiguration : IEntityTypeConfiguration<AdminPr
 {
     public void Configure(EntityTypeBuilder<AdminProfile> b)
     {
-        // Champs spécifiques Admin
+        b.ToTable("AdminProfiles");
+
+        b.HasKey(x => x.Id);
+
+        b.Property(x => x.UserProfileId)
+            .IsRequired();
+
+        b.Property(x => x.UserId)
+            .IsRequired();
+
+        b.HasIndex(x => x.UserProfileId)
+            .IsUnique();
+
+        b.HasIndex(x => x.UserId)
+            .IsUnique();
+
         b.Property(x => x.Departement)
             .HasMaxLength(100);
 
-        // Optionnel (propre) : index si tu filtres souvent par département
-         b.HasIndex(x => x.Departement);
+        b.Property(x => x.Fonction)
+            .HasMaxLength(100);
+
+        b.Property(x => x.TelephoneProfessionnel)
+            .HasMaxLength(20);
+
+        b.HasIndex(x => x.Departement);
+
+        b.Property(x => x.InscriptionTerminee)
+            .IsRequired();
+
+        b.Property(x => x.CreatedAt)
+            .IsRequired();
+
+        b.Property(x => x.UpdatedAt)
+            .IsRequired();
     }
 }

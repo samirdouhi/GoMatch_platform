@@ -6,7 +6,11 @@ namespace ProfileService.Mappers.Admin;
 
 public interface IAdminProfileMapper
 {
-    AdminProfileResponseDto ToResponseDto(AdminProfile profile);
-    UpdateProfileResponseDto ToUpdateProfileResponseDto(AdminProfile profile);
-    void MapCommonUpdates(UpdateProfileRequestDto dto, AdminProfile profile);
+    AdminProfileResponseDto ToResponseDto(
+        UserProfile userProfile,
+        AdminProfile profile);
+
+    UpdateUserProfileResponseDto ToUpdateUserProfileResponseDto(UserProfile userProfile);
+
+    void MapRequest(UpdateAdminProfileRequestDto dto, AdminProfile profile);
 }

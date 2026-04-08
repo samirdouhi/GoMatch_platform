@@ -1,17 +1,24 @@
-﻿using ProfileService.Enums;
+﻿using ProfileService.DTOs.Common;
 
 namespace ProfileService.DTOs.Commercant;
 
 public sealed class CommercantProfileResponseDto
 {
-    public Guid UserId { get; set; }
-    public string? Prenom { get; set; }
-    public string? Nom { get; set; }
-    public string? PhotoUrl { get; set; }
-    public Langue Langue { get; set; }
+    public UserProfileSummaryDto UserProfile { get; set; } = new();
+
+    public string? NomResponsable { get; set; }
     public string? Telephone { get; set; }
+    public string? EmailProfessionnel { get; set; }
+    public string? Ville { get; set; }
+    public string? AdresseProfessionnelle { get; set; }
+    public string? TypeActivite { get; set; }
+
+    public string? Status { get; set; }
+    public string? RejectionReason { get; set; }
+
+    public DateTime? SubmittedAt { get; set; }
+    public DateTime? ReviewedAt { get; set; }
+
     public Guid? CommerceId { get; set; }
     public bool InscriptionTerminee { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
 }

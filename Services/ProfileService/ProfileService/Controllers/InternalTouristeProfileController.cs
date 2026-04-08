@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using ProfileService.Dtos.Touriste;
 using ProfileService.DTOs.Touriste;
 using ProfileService.Services.Touriste;
 
@@ -7,7 +6,7 @@ namespace ProfileService.Controllers.Touriste;
 
 [ApiController]
 [Route("internal/touriste/profile")]
-public class InternalTouristeProfileController : ControllerBase
+public sealed class InternalTouristeProfileController : ControllerBase
 {
     private readonly ITouristeProfileService _touristeProfileService;
 
@@ -18,7 +17,7 @@ public class InternalTouristeProfileController : ControllerBase
 
     [HttpPost("register-init")]
     public async Task<IActionResult> RegisterInit(
-        [FromBody] RegisterInitProfileRequestDto request,
+        [FromBody] RegisterTouristeProfileRequestDto request,
         CancellationToken ct)
     {
         var result = await _touristeProfileService.RegisterInitAsync(request, ct);

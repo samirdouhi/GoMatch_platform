@@ -1,16 +1,13 @@
-﻿using ProfileService.Enums;
+﻿using ProfileService.DTOs.Common;
 
 namespace ProfileService.DTOs.Admin;
 
 public sealed class AdminProfileResponseDto
 {
-    public Guid UserId { get; set; }
-    public string? Prenom { get; set; }
-    public string? Nom { get; set; }
-    public string? PhotoUrl { get; set; }
-    public Langue Langue { get; set; }
+    public UserProfileSummaryDto UserProfile { get; set; } = new();
+
     public string? Departement { get; set; }
+    public string? Fonction { get; set; }
+    public string? TelephoneProfessionnel { get; set; }
     public bool InscriptionTerminee { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
 }

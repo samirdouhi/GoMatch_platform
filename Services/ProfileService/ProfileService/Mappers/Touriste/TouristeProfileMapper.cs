@@ -8,81 +8,70 @@ public sealed class TouristeProfileMapper : ITouristeProfileMapper
 {
     private const string MyPhotoEndpoint = "/profile/me/photo";
 
-    private static string BuildPhotoUrl(TouristeProfile profile)
-        => string.IsNullOrWhiteSpace(profile.PhotoPath)
-            ? string.Empty
+    private static string? BuildPhotoUrl(UserProfile userProfile)
+        => string.IsNullOrWhiteSpace(userProfile.PhotoPath)
+            ? null
             : MyPhotoEndpoint;
 
-    public OnboardingResponseDto ToOnboardingResponseDto(TouristeProfile profile) => new()
+    private static UserProfileSummaryDto ToUserProfileSummaryDto(UserProfile userProfile) => new()
     {
-        UserId = profile.UserId,
-        Langue = profile.Langue,
-        Nationalite = profile.Nationalite,
-        Preferences = profile.Preferences?.ToList() ?? [],
-        EquipesSuivies = profile.EquipesSuivies?.ToList() ?? [],
+        UserId = userProfile.UserId,
+        Prenom = userProfile.Prenom,
+        Nom = userProfile.Nom,
+        DateNaissance = userProfile.DateNaissance,
+        Genre = userProfile.Genre?.ToString(),
+        Langue = userProfile.Langue.ToString(),
+        PhotoUrl = BuildPhotoUrl(userProfile),
+        IsActive = userProfile.IsActive
+    };
+
+    public TouristeProfileResponseDto ToProfileResponseDto(
+        UserProfile userProfile,
+        TouristeProfile profile) => new()
+        {
+            UserProfile = ToUserProfileSummaryDto(userProfile),
+            Nationalite = profile.Nationalite,
+            PreferencesJson = profile.PreferencesJson,
+            EquipesSuiviesJson = profile.EquipesSuiviesJson,
+            InscriptionTerminee = profile.InscriptionTerminee
+        };
+
+    public TouristePreferencesResponseDto ToPreferencesResponseDto(TouristeProfile profile) => new()
+    {
+        PreferencesJson = profile.PreferencesJson,
+        EquipesSuiviesJson = profile.EquipesSuiviesJson
+    };
+
+    public CompleteTouristeOnboardingResponseDto ToOnboardingResponseDto(TouristeProfile profile) => new()
+    {
         InscriptionTerminee = profile.InscriptionTerminee
     };
 
-    public TouristeProfileResponseDto ToProfileResponseDto(TouristeProfile profile) => new()
+    public UpdateUserProfileResponseDto ToUpdateUserProfileResponseDto(UserProfile userProfile) => new()
     {
-        UserId = profile.UserId,
-        Prenom = profile.Prenom,
-        Nom = profile.Nom,
-        DateNaissance = profile.DateNaissance,
-        Genre = profile.Genre,
-        PhotoUrl = BuildPhotoUrl(profile),
-        Langue = profile.Langue,
-        Nationalite = profile.Nationalite,
-        Preferences = profile.Preferences?.ToList() ?? [],
-        EquipesSuivies = profile.EquipesSuivies?.ToList() ?? [],
-        InscriptionTerminee = profile.InscriptionTerminee,
-        CreatedAt = profile.CreatedAt,
-        UpdatedAt = profile.UpdatedAt
+        Prenom = userProfile.Prenom ?? string.Empty,
+        Nom = userProfile.Nom ?? string.Empty,
+        DateNaissance = userProfile.DateNaissance ?? default,
+        Genre = userProfile.Genre?.ToString() ?? string.Empty,
+        Langue = userProfile.Langue.ToString(),
+        PhotoUrl = BuildPhotoUrl(userProfile)
     };
 
-    public PreferencesResponseDto ToPreferencesResponseDto(TouristeProfile profile) => new()
+    public void MapOnboarding(CompleteTouristeOnboardingRequestDto dto, TouristeProfile profile)
     {
-        UserId = profile.UserId,
-        Preferences = profile.Preferences?.ToList() ?? [],
-        EquipesSuivies = profile.EquipesSuivies?.ToList() ?? [],
-    };
+        profile.Nationalite = string.IsNullOrWhiteSpace(dto.Nationalite)
+            ? null
+            : dto.Nationalite.Trim();
 
-    public UpdateProfileResponseDto ToUpdateProfileResponseDto(TouristeProfile profile) => new()
-    {
-        UserId = profile.UserId,
-        Prenom = profile.Prenom,
-        Nom = profile.Nom,
-        DateNaissance = profile.DateNaissance,
-        Genre = profile.Genre,
-        PhotoUrl = BuildPhotoUrl(profile),
-        Langue = profile.Langue,
-        UpdatedAt = profile.UpdatedAt
-    };
-
-    public void MapCommonUpdates(UpdateProfileRequestDto dto, TouristeProfile profile)
-    {
-        profile.Prenom = dto.Prenom;
-        profile.Nom = dto.Nom;
-        profile.DateNaissance = dto.DateNaissance;
-        profile.Genre = dto.Genre;
-
-        if (dto.Langue.HasValue)
-            profile.Langue = dto.Langue.Value;
+        profile.PreferencesJson = dto.PreferencesJson;
+        profile.EquipesSuiviesJson = dto.EquipesSuiviesJson;
+        profile.UpdatedAt = DateTime.UtcNow;
     }
 
-    public void MapOnboarding(OnboardingRequestDto dto, TouristeProfile profile)
+    public void MapPreferences(UpdateTouristePreferencesRequestDto dto, TouristeProfile profile)
     {
-        profile.Preferences = dto.Preferences;
-        profile.Langue = dto.Langue;
-        profile.EquipesSuivies = dto.EquipesSuivies;
-    }
-
-    public void MapPreferences(UpdatePreferencesRequestDto request, TouristeProfile profile)
-    {
-        profile.Preferences = request.Preferences;
-        profile.EquipesSuivies = request.EquipesSuivies;
-
-        if (request.Langue.HasValue)
-            profile.Langue = request.Langue.Value;
+        profile.PreferencesJson = dto.PreferencesJson;
+        profile.EquipesSuiviesJson = dto.EquipesSuiviesJson;
+        profile.UpdatedAt = DateTime.UtcNow;
     }
 }

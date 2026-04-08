@@ -22,16 +22,196 @@ namespace ProfileService.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("ProfileService.Models.ProfileBase", b =>
+            modelBuilder.Entity("ProfileService.Models.AdminProfile", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Departement")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Fonction")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("InscriptionTerminee")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("TelephoneProfessionnel")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Departement");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.HasIndex("UserProfileId")
+                        .IsUnique();
+
+                    b.ToTable("AdminProfiles", (string)null);
+                });
+
+            modelBuilder.Entity("ProfileService.Models.CommercantProfile", b =>
+                {
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AdresseProfessionnelle")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<Guid?>("CommerceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EmailProfessionnel")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<bool>("InscriptionTerminee")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsProfessionalEmailVerified")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("NomResponsable")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("ProfessionalEmailVerificationToken")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("ProfessionalEmailVerificationTokenExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Telephone")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("TypeActivite")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Ville")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CommerceId")
+                        .IsUnique()
+                        .HasFilter("[CommerceId] IS NOT NULL");
+
+                    b.HasIndex("EmailProfessionnel");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("Telephone");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.HasIndex("UserProfileId")
+                        .IsUnique();
+
+                    b.ToTable("CommercantProfiles", (string)null);
+                });
+
+            modelBuilder.Entity("ProfileService.Models.TouristeProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EquipesSuiviesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("InscriptionTerminee")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Nationalite")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PreferencesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.HasIndex("UserProfileId")
+                        .IsUnique();
+
+                    b.ToTable("TouristeProfiles", (string)null);
+                });
+
+            modelBuilder.Entity("ProfileService.Models.UserProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateOnly?>("DateNaissance")
                         .HasColumnType("date");
@@ -39,38 +219,28 @@ namespace ProfileService.Migrations
                     b.Property<int?>("Genre")
                         .HasColumnType("int");
 
-                    b.Property<bool>("InscriptionTerminee")
+                    b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<int>("Langue")
-                        .HasColumnType("int");
+                    b.Property<string>("Langue")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<string>("Nom")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("PhotoPath")
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("Prenom")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("ProfileType")
-                        .IsRequired()
-                        .HasMaxLength(13)
-                        .HasColumnType("nvarchar(13)");
-
                     b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
@@ -80,57 +250,49 @@ namespace ProfileService.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("Profiles", (string)null);
-
-                    b.HasDiscriminator<string>("ProfileType").HasValue("ProfileBase");
-
-                    b.UseTphMappingStrategy();
+                    b.ToTable("UserProfiles", (string)null);
                 });
 
             modelBuilder.Entity("ProfileService.Models.AdminProfile", b =>
                 {
-                    b.HasBaseType("ProfileService.Models.ProfileBase");
+                    b.HasOne("ProfileService.Models.UserProfile", "UserProfile")
+                        .WithOne("AdminProfile")
+                        .HasForeignKey("ProfileService.Models.AdminProfile", "UserProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Property<string>("Departement")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasIndex("Departement");
-
-                    b.HasDiscriminator().HasValue("Admin");
+                    b.Navigation("UserProfile");
                 });
 
             modelBuilder.Entity("ProfileService.Models.CommercantProfile", b =>
                 {
-                    b.HasBaseType("ProfileService.Models.ProfileBase");
+                    b.HasOne("ProfileService.Models.UserProfile", "UserProfile")
+                        .WithOne("CommercantProfile")
+                        .HasForeignKey("ProfileService.Models.CommercantProfile", "UserProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Property<Guid?>("CommerceId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Telephone")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasDiscriminator().HasValue("Commercant");
+                    b.Navigation("UserProfile");
                 });
 
             modelBuilder.Entity("ProfileService.Models.TouristeProfile", b =>
                 {
-                    b.HasBaseType("ProfileService.Models.ProfileBase");
+                    b.HasOne("ProfileService.Models.UserProfile", "UserProfile")
+                        .WithOne("TouristeProfile")
+                        .HasForeignKey("ProfileService.Models.TouristeProfile", "UserProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Property<string>("EquipesSuivies")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Navigation("UserProfile");
+                });
 
-                    b.Property<string>("Nationalite")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+            modelBuilder.Entity("ProfileService.Models.UserProfile", b =>
+                {
+                    b.Navigation("AdminProfile");
 
-                    b.Property<string>("Preferences")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Navigation("CommercantProfile");
 
-                    b.HasDiscriminator().HasValue("Touriste");
+                    b.Navigation("TouristeProfile");
                 });
 #pragma warning restore 612, 618
         }

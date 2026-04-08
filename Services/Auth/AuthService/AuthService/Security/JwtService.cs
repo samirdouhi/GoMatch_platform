@@ -12,7 +12,10 @@ public sealed class JwtService : IJwtService
 {
     private readonly JwtOptions _options;
 
-    public JwtService(IOptions<JwtOptions> options) => _options = options.Value;
+    public JwtService(IOptions<JwtOptions> options)
+    {
+        _options = options.Value;
+    }
 
     public (string Token, DateTime ExpiresAtUtc) GenerateToken(User user)
     {
@@ -21,14 +24,19 @@ public sealed class JwtService : IJwtService
 
         var expires = DateTime.UtcNow.AddMinutes(_options.ExpiryMinutes);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role.ToString()),
         };
 
-        var token = new JwtSecurityToken( 
+        foreach (var role in user.Roles.Distinct())
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role.ToString()));
+        }
+
+        var token = new JwtSecurityToken(
             issuer: _options.Issuer,
             audience: _options.Audience,
             claims: claims,

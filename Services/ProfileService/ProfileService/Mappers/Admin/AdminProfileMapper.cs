@@ -6,46 +6,60 @@ namespace ProfileService.Mappers.Admin;
 
 public sealed class AdminProfileMapper : IAdminProfileMapper
 {
-    private const string MyPhotoEndpoint = "/api/admin/profile/me/photo";
+    private const string MyPhotoEndpoint = "/profile/me/photo";
 
-    private static string BuildPhotoUrl(AdminProfile profile)
-        => string.IsNullOrWhiteSpace(profile.PhotoPath)
-            ? string.Empty
+    private static string? BuildPhotoUrl(UserProfile userProfile)
+        => string.IsNullOrWhiteSpace(userProfile.PhotoPath)
+            ? null
             : MyPhotoEndpoint;
 
-    public AdminProfileResponseDto ToResponseDto(AdminProfile profile) => new()
+    private static UserProfileSummaryDto ToUserProfileSummaryDto(UserProfile userProfile) => new()
     {
-        UserId = profile.UserId,
-        Prenom = profile.Prenom,
-        Nom = profile.Nom,
-        PhotoUrl = BuildPhotoUrl(profile),
-        Langue = profile.Langue,
-        Departement = profile.Departement,
-        InscriptionTerminee = profile.InscriptionTerminee,
-        CreatedAt = profile.CreatedAt,
-        UpdatedAt = profile.UpdatedAt
+        UserId = userProfile.UserId,
+        Prenom = userProfile.Prenom,
+        Nom = userProfile.Nom,
+        DateNaissance = userProfile.DateNaissance,
+        Genre = userProfile.Genre?.ToString(),
+        Langue = userProfile.Langue.ToString(),
+        PhotoUrl = BuildPhotoUrl(userProfile),
+        IsActive = userProfile.IsActive
     };
 
-    public UpdateProfileResponseDto ToUpdateProfileResponseDto(AdminProfile profile) => new()
+    public AdminProfileResponseDto ToResponseDto(
+        UserProfile userProfile,
+        AdminProfile profile) => new()
+        {
+            UserProfile = ToUserProfileSummaryDto(userProfile),
+            Departement = profile.Departement,
+            Fonction = profile.Fonction,
+            TelephoneProfessionnel = profile.TelephoneProfessionnel,
+            InscriptionTerminee = profile.InscriptionTerminee
+        };
+
+    public UpdateUserProfileResponseDto ToUpdateUserProfileResponseDto(UserProfile userProfile) => new()
     {
-        UserId = profile.UserId,
-        Prenom = profile.Prenom,
-        Nom = profile.Nom,
-        DateNaissance = profile.DateNaissance,
-        Genre = profile.Genre,
-        PhotoUrl = BuildPhotoUrl(profile),
-        Langue = profile.Langue,
-        UpdatedAt = profile.UpdatedAt
+        Prenom = userProfile.Prenom ?? string.Empty,
+        Nom = userProfile.Nom ?? string.Empty,
+        DateNaissance = userProfile.DateNaissance ?? default,
+        Genre = userProfile.Genre?.ToString() ?? string.Empty,
+        Langue = userProfile.Langue.ToString(),
+        PhotoUrl = BuildPhotoUrl(userProfile)
     };
 
-    public void MapCommonUpdates(UpdateProfileRequestDto dto, AdminProfile profile)
+    public void MapRequest(UpdateAdminProfileRequestDto dto, AdminProfile profile)
     {
-        profile.Prenom = dto.Prenom;
-        profile.Nom = dto.Nom;
-        profile.DateNaissance = dto.DateNaissance;
-        profile.Genre = dto.Genre;
+        profile.Departement = string.IsNullOrWhiteSpace(dto.Departement)
+            ? null
+            : dto.Departement.Trim();
 
-        if (dto.Langue.HasValue)
-            profile.Langue = dto.Langue.Value;
+        profile.Fonction = string.IsNullOrWhiteSpace(dto.Fonction)
+            ? null
+            : dto.Fonction.Trim();
+
+        profile.TelephoneProfessionnel = string.IsNullOrWhiteSpace(dto.TelephoneProfessionnel)
+            ? null
+            : dto.TelephoneProfessionnel.Trim();
+
+        profile.UpdatedAt = DateTime.UtcNow;
     }
 }

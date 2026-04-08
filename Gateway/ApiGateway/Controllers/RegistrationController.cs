@@ -6,7 +6,7 @@ namespace ApiGateway.Controllers;
 
 [ApiController]
 [Route("gateway")]
-public class RegistrationController : ControllerBase
+public sealed class RegistrationController : ControllerBase
 {
     private readonly IHttpClientFactory _httpClientFactory;
 
@@ -18,26 +18,32 @@ public class RegistrationController : ControllerBase
     [HttpPost("register-complete")]
     public async Task<IActionResult> RegisterComplete([FromBody] RegisterCompleteRequest request)
     {
+        if (!ModelState.IsValid)
+            return ValidationProblem(ModelState);
+
         if (request.Password != request.ConfirmPassword)
         {
-            return BadRequest(new { message = "Password et ConfirmPassword ne correspondent pas." });
+            return BadRequest(new
+            {
+                message = "Password et ConfirmPassword ne correspondent pas."
+            });
         }
 
         var authClient = _httpClientFactory.CreateClient("AuthService");
         var profileClient = _httpClientFactory.CreateClient("ProfileService");
 
-        // 1) Appel AuthService
         var authPayload = new
         {
-            email = request.Email,
+            email = request.Email.Trim().ToLowerInvariant(),
             password = request.Password
         };
 
-        var authResponse = await authClient.PostAsJsonAsync("auth/register", authPayload);
+        var authResponse = await authClient.PostAsJsonAsync("/auth/register", authPayload);
 
         if (!authResponse.IsSuccessStatusCode)
         {
             var authError = await authResponse.Content.ReadAsStringAsync();
+
             return StatusCode((int)authResponse.StatusCode, new
             {
                 step = "AuthService",
@@ -49,28 +55,27 @@ public class RegistrationController : ControllerBase
 
         if (authResult is null || authResult.UserId == Guid.Empty)
         {
-            return StatusCode(500, new
+            return StatusCode(StatusCodes.Status500InternalServerError, new
             {
                 step = "AuthService",
                 error = "Réponse invalide : UserId manquant."
             });
         }
 
-        // 2) Appel ProfileService
         var profilePayload = new ProfileRegisterInitRequest
         {
             UserId = authResult.UserId,
-            Prenom = request.Prenom,
-            Nom = request.Nom,
+            Prenom = request.Prenom.Trim(),
+            Nom = request.Nom.Trim(),
             DateNaissance = request.DateNaissance,
-            Genre = request.Genre,
+            Genre = request.Genre.Trim(),
             Nationalite = string.IsNullOrWhiteSpace(request.Nationalite)
                 ? null
                 : request.Nationalite.Trim()
         };
 
         var profileResponse = await profileClient.PostAsJsonAsync(
-            "internal/touriste/profile/register-init",
+            "/internal/touriste/profile/register-init",
             profilePayload);
 
         if (!profileResponse.IsSuccessStatusCode)

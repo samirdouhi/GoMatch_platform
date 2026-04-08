@@ -6,8 +6,11 @@ namespace ProfileService.Mappers.Commercant;
 
 public interface ICommercantProfileMapper
 {
-    CommercantProfileResponseDto ToResponseDto(CommercantProfile profile);
-    UpdateProfileResponseDto ToUpdateProfileResponseDto(CommercantProfile profile);
-    void MapRequest(CommercantProfileRequestDto dto, CommercantProfile profile);
-    void MapCommonUpdates(UpdateProfileRequestDto dto, CommercantProfile profile);
+    CommercantProfileResponseDto ToResponseDto(
+        UserProfile userProfile,
+        CommercantProfile profile);
+
+    UpdateUserProfileResponseDto ToUpdateUserProfileResponseDto(UserProfile userProfile);
+
+    void MapRequest(CompleteCommercantProfileRequestDto dto, CommercantProfile profile);
 }

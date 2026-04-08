@@ -23,7 +23,6 @@ public sealed class UserRepository : IUserRepository
     public Task<User?> GetByEmailAsync(string emailNormalise, CancellationToken ct)
     {
         return _db.Users
-            .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Email == emailNormalise, ct);
     }
 
@@ -31,6 +30,12 @@ public sealed class UserRepository : IUserRepository
     {
         return _db.Users
             .FirstOrDefaultAsync(u => u.Id == userId, ct);
+    }
+
+    public Task<User?> GetByEmailConfirmationTokenAsync(string token, CancellationToken ct)
+    {
+        return _db.Users
+            .FirstOrDefaultAsync(u => u.EmailConfirmationToken == token, ct);
     }
 
     public Task AjouterAsync(User utilisateur, CancellationToken ct)

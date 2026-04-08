@@ -12,21 +12,24 @@ using ProfileService.Options;
 using ProfileService.Repositories.Admin;
 using ProfileService.Repositories.Commercant;
 using ProfileService.Repositories.Touriste;
+using ProfileService.Repositories.UserProfiles;
 using ProfileService.Security;
 using ProfileService.Services.Admin;
 using ProfileService.Services.Commercant;
+using ProfileService.Services.External;
 using ProfileService.Services.Storage;
 using ProfileService.Services.Touriste;
 using Scalar.AspNetCore;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
+using ProfileService.Clients.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
-// ── Controllers ───────────────────────────────────────────
 builder.Services
     .AddControllers()
     .AddJsonOptions(options =>
@@ -35,10 +38,8 @@ builder.Services
             new JsonStringEnumConverter(allowIntegerValues: false));
     });
 
-// ── OpenAPI + Scalar ──────────────────────────────────────
 builder.Services.AddOpenApi();
 
-// ── CORS ──────────────────────────────────────────────────
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontDev", policy =>
@@ -50,7 +51,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-// ── JWT Options (Options Pattern) ─────────────────────────
 builder.Services.Configure<JwtOptions>(
     builder.Configuration.GetSection(JwtOptions.SectionName));
 
@@ -68,13 +68,11 @@ if (string.IsNullOrWhiteSpace(jwtOptions.Issuer))
 if (string.IsNullOrWhiteSpace(jwtOptions.Audience))
     throw new InvalidOperationException("Missing Jwt:Audience");
 
-// ── Photo Storage Options ─────────────────────────────────
 builder.Services.Configure<PhotoStorageOptions>(
     builder.Configuration.GetSection("PhotoStorage"));
 
 builder.Services.AddScoped<IProfilePhotoStorageService, ProfilePhotoStorageService>();
 
-// ── JWT Authentication ────────────────────────────────────
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -99,50 +97,62 @@ builder.Services
             ClockSkew = TimeSpan.Zero,
 
             NameClaimType = CustomClaimTypes.Email,
-            RoleClaimType = CustomClaimTypes.Role
+            RoleClaimType = ClaimTypes.Role
         };
     });
 
-// ── Authorization ─────────────────────────────────────────
 builder.Services.AddAuthorization();
 
-// ── DbContext ─────────────────────────────────────────────
 builder.Services.AddDbContext<ProfileDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// ── Security / Logging ────────────────────────────────────
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
 builder.Services.AddSingleton<ILogSanitizer, LogSanitizer>();
 
-// ── Mappers ───────────────────────────────────────────────
 builder.Services.AddScoped<ITouristeProfileMapper, TouristeProfileMapper>();
 builder.Services.AddScoped<ICommercantProfileMapper, CommercantProfileMapper>();
 builder.Services.AddScoped<IAdminProfileMapper, AdminProfileMapper>();
 
-// ── Repositories ──────────────────────────────────────────
 builder.Services.AddScoped<ITouristeProfileRepository, TouristeProfileRepository>();
 builder.Services.AddScoped<ICommercantProfileRepository, CommercantProfileRepository>();
 builder.Services.AddScoped<IAdminProfileRepository, AdminProfileRepository>();
+builder.Services.AddScoped<IUserProfileRepository, UserProfileRepository>();
 
-// ── Services ──────────────────────────────────────────────
 builder.Services.AddScoped<ITouristeProfileService, TouristeProfileService>();
 builder.Services.AddScoped<ICommercantProfileService, CommercantProfileService>();
 builder.Services.AddScoped<IAdminProfileService, AdminProfileService>();
 
-// ── Error Handling ────────────────────────────────────────
+builder.Services.AddHttpClient<IEmailClient, EmailClient>(client =>
+{
+    var authServiceBaseUrl = builder.Configuration["Services:AuthServiceBaseUrl"];
+
+    if (string.IsNullOrWhiteSpace(authServiceBaseUrl))
+        throw new InvalidOperationException("Configuration manquante : Services:AuthServiceBaseUrl");
+
+    client.BaseAddress = new Uri(authServiceBaseUrl);
+});
+builder.Services.AddHttpClient<IAuthClient, AuthClient>((sp, client) =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var baseUrl = configuration["Services:AuthServiceBaseUrl"];
+
+    if (string.IsNullOrWhiteSpace(baseUrl))
+        throw new InvalidOperationException("Services:AuthServiceBaseUrl is not configured.");
+
+    client.BaseAddress = new Uri(baseUrl);
+});
+
 builder.Services.AddScoped<IExceptionMapper, ExceptionMapper>();
 
 var app = builder.Build();
 
-// ── OpenAPI + Scalar en dev / docker ─────────────────────
 if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
 }
 
-// ── Middleware pipeline ───────────────────────────────────
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseHttpsRedirection();

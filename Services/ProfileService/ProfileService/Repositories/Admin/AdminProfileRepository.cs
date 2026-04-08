@@ -15,21 +15,19 @@ public sealed class AdminProfileRepository : IAdminProfileRepository
 
     public async Task<AdminProfile?> GetByUserIdAsync(Guid userId)
     {
-        return await _context.Profiles
-            .OfType<AdminProfile>()
+        return await _context.AdminProfiles
             .FirstOrDefaultAsync(p => p.UserId == userId);
     }
 
     public async Task<bool> ExistsByUserIdAsync(Guid userId)
     {
-        return await _context.Profiles
-            .OfType<AdminProfile>()
+        return await _context.AdminProfiles
             .AnyAsync(p => p.UserId == userId);
     }
 
     public async Task AddAsync(AdminProfile profile)
     {
-        await _context.Profiles.AddAsync(profile);
+        await _context.AdminProfiles.AddAsync(profile);
     }
 
     public async Task SaveChangesAsync()

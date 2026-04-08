@@ -13,6 +13,11 @@
 # Secrets / local env
 .env
 
+
+# Storage images
+Storage/
+Services/**/Storage/
+
 # OS junk
 .DS_Store
 Thumbs.db

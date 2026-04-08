@@ -6,12 +6,17 @@ namespace ProfileService.Mappers.Touriste;
 
 public interface ITouristeProfileMapper
 {
-    OnboardingResponseDto ToOnboardingResponseDto(TouristeProfile profile);
-    TouristeProfileResponseDto ToProfileResponseDto(TouristeProfile profile);
-    PreferencesResponseDto ToPreferencesResponseDto(TouristeProfile profile);
-    UpdateProfileResponseDto ToUpdateProfileResponseDto(TouristeProfile profile);
+    TouristeProfileResponseDto ToProfileResponseDto(
+        UserProfile userProfile,
+        TouristeProfile profile);
 
-    void MapCommonUpdates(UpdateProfileRequestDto dto, TouristeProfile profile);
-    void MapOnboarding(OnboardingRequestDto dto, TouristeProfile profile);
-    void MapPreferences(UpdatePreferencesRequestDto dto, TouristeProfile profile);
+    TouristePreferencesResponseDto ToPreferencesResponseDto(TouristeProfile profile);
+
+    CompleteTouristeOnboardingResponseDto ToOnboardingResponseDto(TouristeProfile profile);
+
+    UpdateUserProfileResponseDto ToUpdateUserProfileResponseDto(UserProfile userProfile);
+
+    void MapOnboarding(CompleteTouristeOnboardingRequestDto dto, TouristeProfile profile);
+
+    void MapPreferences(UpdateTouristePreferencesRequestDto dto, TouristeProfile profile);
 }

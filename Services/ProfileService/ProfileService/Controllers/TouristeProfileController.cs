@@ -34,20 +34,20 @@ public sealed class TouristeProfileController : ControllerBase
         return StatusCode(StatusCodes.Status201Created, response);
     }
 
-    [HttpPut("me")]
-    [ProducesResponseType(typeof(UpdateProfileResponseDto), StatusCodes.Status200OK)]
-    public async Task<ActionResult<UpdateProfileResponseDto>> UpdateProfile(
-        [FromBody] UpdateProfileRequestDto request,
+    [HttpPut("me/user")]
+    [ProducesResponseType(typeof(UpdateUserProfileResponseDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<UpdateUserProfileResponseDto>> UpdateUserProfile(
+        [FromBody] UpdateUserProfileRequestDto request,
         CancellationToken ct)
     {
-        var response = await _service.UpdateProfileAsync(request, ct);
+        var response = await _service.UpdateUserProfileAsync(request, ct);
         return Ok(response);
     }
 
     [HttpPost("me/onboarding")]
-    [ProducesResponseType(typeof(OnboardingResponseDto), StatusCodes.Status200OK)]
-    public async Task<ActionResult<OnboardingResponseDto>> CompleteOnboarding(
-        [FromBody] OnboardingRequestDto request,
+    [ProducesResponseType(typeof(CompleteTouristeOnboardingResponseDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<CompleteTouristeOnboardingResponseDto>> CompleteOnboarding(
+        [FromBody] CompleteTouristeOnboardingRequestDto request,
         CancellationToken ct)
     {
         var response = await _service.CompleteOnboardingAsync(request, ct);
@@ -55,9 +55,9 @@ public sealed class TouristeProfileController : ControllerBase
     }
 
     [HttpPut("me/preferences")]
-    [ProducesResponseType(typeof(PreferencesResponseDto), StatusCodes.Status200OK)]
-    public async Task<ActionResult<PreferencesResponseDto>> UpdatePreferences(
-        [FromBody] UpdatePreferencesRequestDto request,
+    [ProducesResponseType(typeof(TouristePreferencesResponseDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TouristePreferencesResponseDto>> UpdatePreferences(
+        [FromBody] UpdateTouristePreferencesRequestDto request,
         CancellationToken ct)
     {
         var response = await _service.UpdatePreferencesAsync(request, ct);
@@ -80,10 +80,6 @@ public sealed class TouristeProfileController : ControllerBase
     public async Task<IActionResult> GetMyPhoto(CancellationToken ct)
     {
         var (stream, contentType) = await _service.GetMyPhotoAsync(ct);
-
-        if (stream == null)
-            return NotFound();
-
         return File(stream, contentType);
     }
 }

@@ -2,7 +2,7 @@
 
 namespace ApiGateway.DTOs;
 
-public class RegisterCompleteRequest
+public sealed class RegisterCompleteRequest
 {
     [Required]
     [MaxLength(100)]
@@ -26,9 +26,10 @@ public class RegisterCompleteRequest
     public string Email { get; set; } = default!;
 
     [Required]
-    [MinLength(6)]
+    [MinLength(8)]
     public string Password { get; set; } = default!;
 
     [Required]
+    [Compare(nameof(Password), ErrorMessage = "Les mots de passe ne correspondent pas.")]
     public string ConfirmPassword { get; set; } = default!;
 }

@@ -15,21 +15,19 @@ public sealed class TouristeProfileRepository : ITouristeProfileRepository
 
     public async Task<TouristeProfile?> GetByUserIdAsync(Guid userId)
     {
-        return await _context.Profiles
-            .OfType<TouristeProfile>()
+        return await _context.TouristeProfiles
             .FirstOrDefaultAsync(p => p.UserId == userId);
     }
 
     public async Task<bool> ExistsByUserIdAsync(Guid userId)
     {
-        return await _context.Profiles
-            .OfType<TouristeProfile>()
+        return await _context.TouristeProfiles
             .AnyAsync(p => p.UserId == userId);
     }
 
     public async Task AddAsync(TouristeProfile profile)
     {
-        await _context.Profiles.AddAsync(profile);
+        await _context.TouristeProfiles.AddAsync(profile);
     }
 
     public async Task SaveChangesAsync()

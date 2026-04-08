@@ -9,11 +9,12 @@ public interface ICommercantProfileService
 
     Task<CommercantProfileResponseDto> InitProfileAsync(CancellationToken ct);
 
-    Task<CommercantProfileResponseDto> CompleteProfileAsync(
-        CommercantProfileRequestDto request,
+    Task<CommercantProfileResponseDto> UpdateCommercantProfileAsync(
+        CompleteCommercantProfileRequestDto request,
         CancellationToken ct);
 
-    Task<UpdateProfileResponseDto> UpdateProfileAsync(
-        UpdateProfileRequestDto request,
+    Task<UpdateUserProfileResponseDto> UpdateUserProfileAsync(
+        UpdateUserProfileRequestDto request,
         CancellationToken ct);
+    Task ConfirmProfessionalEmailAsync(string token, CancellationToken ct);
 }

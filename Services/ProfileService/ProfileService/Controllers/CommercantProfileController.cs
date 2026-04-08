@@ -34,23 +34,36 @@ public sealed class CommercantProfileController : ControllerBase
         return StatusCode(StatusCodes.Status201Created, response);
     }
 
-    [HttpPut("me")]
-    [ProducesResponseType(typeof(UpdateProfileResponseDto), StatusCodes.Status200OK)]
-    public async Task<ActionResult<UpdateProfileResponseDto>> UpdateProfile(
-        [FromBody] UpdateProfileRequestDto request,
+    [HttpPut("me/user")]
+    [ProducesResponseType(typeof(UpdateUserProfileResponseDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<UpdateUserProfileResponseDto>> UpdateUserProfile(
+        [FromBody] UpdateUserProfileRequestDto request,
         CancellationToken ct)
     {
-        var response = await _service.UpdateProfileAsync(request, ct);
+        var response = await _service.UpdateUserProfileAsync(request, ct);
         return Ok(response);
     }
 
-    [HttpPost("me/complete")]
+    [HttpPut("me/business")]
     [ProducesResponseType(typeof(CommercantProfileResponseDto), StatusCodes.Status200OK)]
-    public async Task<ActionResult<CommercantProfileResponseDto>> CompleteProfile(
-        [FromBody] CommercantProfileRequestDto request,
+    public async Task<ActionResult<CommercantProfileResponseDto>> UpdateBusinessProfile(
+        [FromBody] CompleteCommercantProfileRequestDto request,
         CancellationToken ct)
     {
-        var response = await _service.CompleteProfileAsync(request, ct);
+        var response = await _service.UpdateCommercantProfileAsync(request, ct);
         return Ok(response);
+    }
+    [AllowAnonymous]
+    [HttpGet("confirm-professional-email")]
+    public async Task<IActionResult> ConfirmProfessionalEmail(
+    [FromQuery] string token,
+    CancellationToken ct)
+    {
+        await _service.ConfirmProfessionalEmailAsync(token, ct);
+
+        return Ok(new
+        {
+            message = "Email professionnel vérifié. Votre demande est en cours d'analyse."
+        });
     }
 }

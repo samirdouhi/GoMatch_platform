@@ -16,7 +16,7 @@ public sealed class AuthMapper : IAuthMapper
     {
         Id = user.Id,
         Email = user.Email,
-        Role = user.Role
+        Roles = user.Roles.Select(r => r.ToString()).ToList()
     };
 
     public LoginResponseDto ToLoginResponse(string accessToken, DateTime expiresAtUtc, string refreshToken) => new()
